@@ -35,3 +35,7 @@ dotnet publish src/Hopkey.App -c Release -o publish
 
 - Settings and history: `%AppData%\Hopkey\`
 - Index cache, pinyin cache and logs: `%LocalAppData%\Hopkey\`
+
+## License
+
+[MIT](LICENSE)
