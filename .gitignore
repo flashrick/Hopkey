@@ -28,3 +28,4 @@ tests/usn-live-probe/
 Thumbs.db
 Desktop.ini
 .DS_Store
+.zed/
