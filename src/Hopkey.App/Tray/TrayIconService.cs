@@ -5,7 +5,7 @@ using WinForms = System.Windows.Forms;
 
 namespace Hopkey.App.Tray;
 
-/// <summary>Tray icon + menu. Icons are drawn at runtime (no binary assets needed).</summary>
+/// <summary>Tray icon + menu. Uses the embedded app icon; the paused state is a grayscale copy.</summary>
 public sealed class TrayIconService : IDisposable
 {
     private readonly WinForms.NotifyIcon _icon;
@@ -27,8 +27,8 @@ public sealed class TrayIconService : IDisposable
 
     public TrayIconService(bool elevated)
     {
-        _normal = CreateIcon(Color.FromArgb(0, 103, 192));
-        _paused = CreateIcon(Color.FromArgb(128, 128, 128));
+        _normal = LoadAppIcon(WinForms.SystemInformation.SmallIconSize);
+        _paused = CreateGrayscale(_normal);
         var menu = new WinForms.ContextMenuStrip();
         _searchItem = new WinForms.ToolStripMenuItem("", null, (_, _) => SearchRequested?.Invoke());
         _settingsItem = new WinForms.ToolStripMenuItem("", null, (_, _) => SettingsRequested?.Invoke());
@@ -68,27 +68,33 @@ public sealed class TrayIconService : IDisposable
         _icon.ShowBalloonTip(4000);
     }
 
-    /// <summary>Draws a rounded-square magnifier icon.</summary>
-    public static Icon CreateIcon(Color bg, int size = 32)
+    /// <summary>Loads the embedded app icon (Assets/hopkey.ico) at the closest available size.</summary>
+    public static Icon LoadAppIcon(Size size)
     {
-        using var bmp = new Bitmap(size, size);
+        using var stream = typeof(TrayIconService).Assembly.GetManifestResourceStream("Hopkey.App.Assets.hopkey.ico")
+            ?? throw new InvalidOperationException("Embedded resource Assets/hopkey.ico is missing.");
+        return new Icon(stream, size);
+    }
+
+    /// <summary>Desaturated, slightly faded copy of an icon (used for the paused state).</summary>
+    private static Icon CreateGrayscale(Icon source)
+    {
+        using var src = source.ToBitmap();
+        using var bmp = new Bitmap(src.Width, src.Height);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-            using var path = new GraphicsPath();
-            float r = size * 0.22f;
-            var rect = new RectangleF(1, 1, size - 2, size - 2);
-            path.AddArc(rect.X, rect.Y, r * 2, r * 2, 180, 90);
-            path.AddArc(rect.Right - r * 2, rect.Y, r * 2, r * 2, 270, 90);
-            path.AddArc(rect.Right - r * 2, rect.Bottom - r * 2, r * 2, r * 2, 0, 90);
-            path.AddArc(rect.X, rect.Bottom - r * 2, r * 2, r * 2, 90, 90);
-            path.CloseFigure();
-            using (var b = new SolidBrush(bg)) g.FillPath(b, path);
-            using var pen = new Pen(Color.White, size * 0.11f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            float c = size * 0.42f, rad = size * 0.2f;
-            g.DrawEllipse(pen, c - rad, c - rad, rad * 2, rad * 2);
-            g.DrawLine(pen, c + rad * 0.72f, c + rad * 0.72f, size * 0.78f, size * 0.78f);
+            var m = new System.Drawing.Imaging.ColorMatrix(new[]
+            {
+                new[] { 0.30f, 0.30f, 0.30f, 0, 0 },
+                new[] { 0.59f, 0.59f, 0.59f, 0, 0 },
+                new[] { 0.11f, 0.11f, 0.11f, 0, 0 },
+                new[] { 0f, 0, 0, 0.85f, 0 },
+                new[] { 0f, 0, 0, 0, 1 },
+            });
+            using var attrs = new System.Drawing.Imaging.ImageAttributes();
+            attrs.SetColorMatrix(m);
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(src, new Rectangle(0, 0, src.Width, src.Height), 0, 0, src.Width, src.Height, GraphicsUnit.Pixel, attrs);
         }
         return Icon.FromHandle(bmp.GetHicon());
     }
