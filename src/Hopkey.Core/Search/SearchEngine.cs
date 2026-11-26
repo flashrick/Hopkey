@@ -35,11 +35,14 @@ public sealed class SearchEngine
         var settings = _settings();
         var q = QueryParser.Parse(text, settings.WebSearch);
         int max = Math.Clamp(settings.Search.MaxResults, 5, 500);
+        var sortMode = q.Keywords.Count > 0 ? settings.Search.SortBy : ResultSortMode.Relevance;
+        // Date/size sorting reorders within a match tier, so look at a wider candidate pool than what's shown.
+        int fetch = sortMode == ResultSortMode.Relevance ? max : Math.Min(Math.Max(max * 4, 200), 1000);
 
         var active = _providers.Where(p => p.CanHandle(q)).ToArray();
         var buckets = new IReadOnlyList<SearchResult>[active.Length];
-        if (active.Length == 1) buckets[0] = SafeSearch(active[0], q, max, ct);
-        else Parallel.For(0, active.Length, new ParallelOptions { CancellationToken = ct }, i => buckets[i] = SafeSearch(active[i], q, max, ct));
+        if (active.Length == 1) buckets[0] = SafeSearch(active[0], q, fetch, ct);
+        else Parallel.For(0, active.Length, new ParallelOptions { CancellationToken = ct }, i => buckets[i] = SafeSearch(active[i], q, fetch, ct));
         ct.ThrowIfCancellationRequested();
 
         var matcher = _matcher();
@@ -66,6 +69,7 @@ public sealed class SearchEngine
         all.AddRange(others);
         all.AddRange(byKey.Values);
         all.Sort((a, b) => b.Score.CompareTo(a.Score));
+        ResultSorter.Apply(all, q, sortMode, ct);
         if (all.Count > max) all.RemoveRange(max, all.Count - max);
         LastSearchTime = sw.Elapsed;
         return all;

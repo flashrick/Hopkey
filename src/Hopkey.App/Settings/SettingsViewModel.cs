@@ -245,6 +245,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public bool Pinyin { get => _draft.Search.Pinyin; set { _draft.Search.Pinyin = value; OnPropertyChanged(); Schedule(); } }
     public bool HistoryBoost { get => _draft.Search.UseHistoryBoost; set { _draft.Search.UseHistoryBoost = value; OnPropertyChanged(); Schedule(); } }
     public int MaxResults { get => _draft.Search.MaxResults; set { _draft.Search.MaxResults = Math.Clamp(value, 5, 500); OnPropertyChanged(); Schedule(); } }
+    public bool ShowCreated { get => _draft.Search.ShowCreated; set { _draft.Search.ShowCreated = value; OnPropertyChanged(); Schedule(); } }
+    public bool ShowModified { get => _draft.Search.ShowModified; set { _draft.Search.ShowModified = value; OnPropertyChanged(); Schedule(); } }
+    public bool ShowSize { get => _draft.Search.ShowSize; set { _draft.Search.ShowSize = value; OnPropertyChanged(); Schedule(); } }
+    public List<Choice<ResultSortMode>> SortModes => Enum.GetValues<ResultSortMode>()
+        .Select(m => new Choice<ResultSortMode>(m, LocalizationManager.T("Sort." + m))).ToList();
+    public ResultSortMode SortBy { get => _draft.Search.SortBy; set { _draft.Search.SortBy = value; OnPropertyChanged(); Schedule(); } }
     public void ClearHistory() => ClearHistoryRequested?.Invoke();
 
     // ---------------- QuickSwitch
@@ -401,10 +407,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Kinds));
         OnPropertyChanged(nameof(Targets));
         OnPropertyChanged(nameof(PrivilegeText));
+        OnPropertyChanged(nameof(SortModes));
         // Replacing a ComboBox's ItemsSource clears its selection; re-push the selected values afterwards.
         System.Windows.Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
         {
             OnPropertyChanged(nameof(Theme));
+            OnPropertyChanged(nameof(SortBy));
             OnPropertyChanged(nameof(Language));
         });
     }

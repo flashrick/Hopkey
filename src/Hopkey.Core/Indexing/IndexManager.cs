@@ -176,12 +176,33 @@ public sealed class IndexManager : IDisposable
         var cts = CancellationTokenSource.CreateLinkedTokenSource(outer);
         _builds[root] = cts;
         Interlocked.Increment(ref _building);
-        await _buildGate.WaitAsync(cts.Token).ConfigureAwait(false);
+        // Progress<T> posts its callbacks to the thread pool, so a report can run after this build has finished and
+        // overwrite the final Ready status with a stale "Building" one. Reports are dropped once the build is done.
+        bool done = false;
+        try
+        {
+            await _buildGate.WaitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            Interlocked.Decrement(ref _building);
+            _builds.TryRemove(new KeyValuePair<string, CancellationTokenSource>(root, cts));
+            cts.Dispose();
+            UpdateReadyStatus();
+            return;
+        }
         try
         {
             src.StopWatching();
             SetStatus(new IndexStatus(IndexState.Building, _index.TotalLiveCount, root, _building));
-            var progress = new Progress<long>(n => SetStatus(new IndexStatus(IndexState.Building, Math.Max(n, _index.TotalLiveCount), root, _building)));
+            var progress = new Progress<long>(n =>
+            {
+                lock (_statusLock)
+                {
+                    if (done) return;
+                    SetStatus(new IndexStatus(IndexState.Building, Math.Max(n, _index.TotalLiveCount), root, _building));
+                }
+            });
             var v = await src.BuildAsync(_matcher, progress, cts.Token).ConfigureAwait(false);
             if (src is UsnIndexSource usn) usn.Target = v;
             _index.SetVolume(v);
@@ -199,6 +220,7 @@ public sealed class IndexManager : IDisposable
         }
         finally
         {
+            lock (_statusLock) done = true;
             _buildGate.Release();
             // Later rebuilds (not part of startup) trim on their own — once, after the last concurrent build, since
             // a trim while another volume is still building can't release that build's temporaries.
@@ -210,17 +232,22 @@ public sealed class IndexManager : IDisposable
         }
     }
 
+    private readonly object _statusLock = new();
+
     private void UpdateReadyStatus()
     {
-        if (_paused) { SetStatus(new IndexStatus(IndexState.Paused, _index.TotalLiveCount)); return; }
-        if (_building > 0) { SetStatus(new IndexStatus(IndexState.Building, _index.TotalLiveCount, null, _building)); return; }
-        if (_status.State == IndexState.Error) return;
-        SetStatus(new IndexStatus(IndexState.Ready, _index.TotalLiveCount));
+        lock (_statusLock)
+        {
+            if (_paused) { SetStatus(new IndexStatus(IndexState.Paused, _index.TotalLiveCount)); return; }
+            if (Volatile.Read(ref _building) > 0) { SetStatus(new IndexStatus(IndexState.Building, _index.TotalLiveCount, null, _building)); return; }
+            if (_status.State == IndexState.Error) return;
+            SetStatus(new IndexStatus(IndexState.Ready, _index.TotalLiveCount));
+        }
     }
 
     private void SetStatus(IndexStatus s)
     {
-        _status = s;
+        lock (_statusLock) _status = s;
         try { StatusChanged?.Invoke(s); } catch (Exception ex) { Logger.Warn("StatusChanged handler failed", ex); }
     }
 

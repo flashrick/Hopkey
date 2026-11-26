@@ -124,11 +124,11 @@ public partial class LauncherWindow : Window
         _showStart = PerfLog.Start();
         _reactivations = 0;
         _trimTimer.Stop();
-        bool wasContext = _vm.Context.IsContext;
         _vm.Context = ctx;
-        _vm.Reset(clearQuery: ctx.IsContext || wasContext);
+        // Every show starts fresh: empty query and the default (empty-query) result list.
+        _vm.Reset(clearQuery: true);
         if (initialText != null) _vm.Query = initialText;
-        else if (ctx.IsContext || wasContext || _vm.Results.Count == 0) _vm.SearchNow();
+        else _vm.SearchNow();
 
         PositionWindow(ctx);
         if (!IsVisible) Show();
@@ -150,6 +150,17 @@ public partial class LauncherWindow : Window
         _vm.ActionMode = false;
         Hide();
         _trimTimer.Start();
+    }
+
+    /// <summary>Another process's window became the foreground window (WinEvent). Hide like a click-away.</summary>
+    public void OnExternalForeground(IntPtr hwnd)
+    {
+        if (!_visible || _suppressHide || hwnd == _hwnd) return;
+        // Right after showing, Windows may briefly hand the foreground back to the previous window; the Deactivated
+        // handler re-activates in that window, so don't hide here.
+        if (System.Diagnostics.Stopwatch.GetElapsedTime(_showStart).TotalMilliseconds < 300) return;
+        Logger.Debug($"Foreground moved to 0x{hwnd:X} {User32.GetClassName(hwnd)}; hiding launcher");
+        HideLauncher();
     }
 
     private void PositionWindow(LauncherContext ctx)
@@ -207,6 +218,11 @@ public partial class LauncherWindow : Window
                 else HideLauncher();
                 e.Handled = true;
                 break;
+            case Key.Tab when mods.HasFlag(ModifierKeys.Control):
+                if (!_vm.ActionMode && _vm.CycleFacet(mods.HasFlag(ModifierKeys.Shift) ? -1 : 1))
+                    QueryBox.CaretIndex = QueryBox.Text.Length;
+                e.Handled = true;
+                break;
             case Key.Tab:
                 if (_vm.ActionMode) _vm.ActionMode = false; else _vm.EnterActionMode();
                 e.Handled = true;
@@ -254,6 +270,37 @@ public partial class LauncherWindow : Window
     private void OnActionDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_vm.SelectedAction is { } a) _ = RunAction(a.Kind);
+    }
+
+    /// <summary>Right-click a result: select it and open the same action list as Tab.</summary>
+    private void OnResultRightClick(object sender, MouseButtonEventArgs e)
+    {
+        var item = System.Windows.Controls.ItemsControl.ContainerFromElement(ResultList, (DependencyObject)e.OriginalSource)
+            as System.Windows.Controls.ListBoxItem;
+        if (item?.DataContext is not ResultItemViewModel vm) return;
+        int idx = -1;
+        for (int i = 0; i < _vm.Results.Count; i++) if (ReferenceEquals(_vm.Results[i], vm)) { idx = i; break; }
+        if (idx < 0) return;
+        _vm.SelectedIndex = idx;
+        _vm.EnterActionMode();
+        QueryBox.Focus();
+        e.Handled = true;
+    }
+
+    private void OnFacetClick(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not FacetViewModel f) return;
+        _vm.ApplyFacet(f, recordUsage: true);
+        QueryBox.Focus();
+        QueryBox.CaretIndex = QueryBox.Text.Length;
+        e.Handled = true;
+    }
+
+    private void OnBackClick(object sender, MouseButtonEventArgs e)
+    {
+        _vm.ActionMode = false;
+        QueryBox.Focus();
+        e.Handled = true;
     }
 
     private void OnStatusClick(object sender, MouseButtonEventArgs e)

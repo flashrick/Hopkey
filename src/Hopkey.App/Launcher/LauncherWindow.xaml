@@ -46,9 +46,25 @@
                     <TextBlock local:HighlightText.Item="{Binding}" FontSize="14" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <TextBlock Text="{Binding Badge}" FontSize="11" Foreground="{DynamicResource Brush.Accent}" Margin="0,0,8,0" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding Shortcut}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding Badge}" FontSize="11" Foreground="{DynamicResource Brush.Accent}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Shortcut}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Details}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" HorizontalAlignment="Right">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </Trigger>
+                                    <Trigger Property="Text" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
             </Grid>
         </DataTemplate>
@@ -100,20 +116,63 @@
                      Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" TextChanged="OnQueryTextChanged" />
         </Grid>
 
-        <Rectangle Grid.Row="2" Height="1" Fill="{DynamicResource Brush.Border}" VerticalAlignment="Top" />
+        <!-- Separator + type filter chips (shown when results span several types) -->
+        <StackPanel Grid.Row="2">
+            <Rectangle Height="1" Fill="{DynamicResource Brush.Border}" />
+            <ItemsControl x:Name="FacetBar" ItemsSource="{Binding Facets}" Margin="12,6,12,0" Focusable="False"
+                          Visibility="{Binding HasFacets, Converter={StaticResource BoolToVis}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:FacetViewModel}">
+                        <Border x:Name="Chip" CornerRadius="11" Padding="10,2" Margin="0,0,6,4" Cursor="Hand"
+                                Background="{DynamicResource Brush.CardAlt}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+                                MouseLeftButtonUp="OnFacetClick">
+                            <TextBlock x:Name="ChipText" Text="{Binding Text}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" />
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <Trigger SourceName="Chip" Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Brush.Hover}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Brush.Selected}" />
+                                <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                <Setter TargetName="ChipText" Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
 
         <!-- Results / actions -->
-        <Grid Grid.Row="2" Margin="0,4,0,4">
+        <Grid Grid.Row="3" Margin="0,4,0,4">
             <ListBox x:Name="ResultList" ItemsSource="{Binding Results}" SelectedIndex="{Binding SelectedIndex}"
                      ItemTemplate="{StaticResource ResultTemplate}" ItemContainerStyle="{StaticResource ResultItemStyle}"
                      BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Brush.Text}" MaxHeight="430"
                      Focusable="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                      VirtualizingPanel.ScrollUnit="Item"
-                     MouseDoubleClick="OnResultDoubleClick" />
+                     MouseDoubleClick="OnResultDoubleClick" PreviewMouseRightButtonUp="OnResultRightClick" />
             <StackPanel x:Name="ActionPanel" Visibility="{Binding ActionMode, Converter={StaticResource BoolToVis}}"
                         Background="{DynamicResource Brush.Card}">
-                <TextBlock Text="{DynamicResource S.Launcher.Back}" Margin="16,4" FontSize="11" Foreground="{DynamicResource Brush.SubText}" />
+                <TextBlock Text="{DynamicResource S.Launcher.Back}" Margin="16,4" Padding="0,2" FontSize="11" HorizontalAlignment="Left"
+                           Cursor="Hand" Background="Transparent" MouseLeftButtonUp="OnBackClick">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.SubText}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+                                    <Setter Property="TextDecorations" Value="Underline" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
                 <ListBox x:Name="ActionList" ItemsSource="{Binding Actions}" SelectedIndex="{Binding SelectedActionIndex}"
                          ItemTemplate="{StaticResource ActionTemplate}" ItemContainerStyle="{StaticResource ResultItemStyle}"
                          BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Brush.Text}" Focusable="False"

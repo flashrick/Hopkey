@@ -4,6 +4,9 @@ namespace Hopkey.Core.Config;
 
 public enum ThemeMode { System, Light, Dark }
 
+/// <summary>Secondary order of file/folder results within the same keyword-match tier.</summary>
+public enum ResultSortMode { Relevance, ModifiedNewest, CreatedNewest, SizeLargest }
+
 public sealed class AppSettings
 {
     public int SchemaVersion { get; set; } = 1;
@@ -73,6 +76,11 @@ public sealed class SearchSettings
     public bool Pinyin { get; set; } = true;
     public bool FullPinyin { get; set; }
     public bool UseHistoryBoost { get; set; } = true;
+    /// <summary>Show file/folder details on launcher results (read lazily from disk; not stored in the index).</summary>
+    public bool ShowCreated { get; set; }
+    public bool ShowModified { get; set; }
+    public bool ShowSize { get; set; }
+    public ResultSortMode SortBy { get; set; } = ResultSortMode.Relevance;
 }
 
 public sealed class FavoriteItem

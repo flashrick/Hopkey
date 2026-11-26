@@ -142,6 +142,18 @@
                             <TextBox Width="80" Text="{Binding MaxResults, UpdateSourceTrigger=LostFocus}" />
                             <Button Content="{DynamicResource S.Settings.Search.ClearHistory}" Margin="16,0,0,0" Click="OnClearHistory" />
                         </StackPanel>
+                        <TextBlock Text="{DynamicResource S.Settings.Search.ShowDetails}" Margin="0,10,0,0" />
+                        <WrapPanel Margin="0,2,0,0">
+                            <CheckBox Content="{DynamicResource S.Settings.Search.ShowCreated}" IsChecked="{Binding ShowCreated}" Margin="0,5,16,5" />
+                            <CheckBox Content="{DynamicResource S.Settings.Search.ShowModified}" IsChecked="{Binding ShowModified}" Margin="0,5,16,5" />
+                            <CheckBox Content="{DynamicResource S.Settings.Search.ShowSize}" IsChecked="{Binding ShowSize}" Margin="0,5,16,5" />
+                        </WrapPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="{DynamicResource S.Settings.Search.SortBy}" Width="120" VerticalAlignment="Center" />
+                            <ComboBox Width="200" ItemsSource="{Binding SortModes}" DisplayMemberPath="Display"
+                                      SelectedValuePath="Value" SelectedValue="{Binding SortBy}" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="{DynamicResource S.Settings.Search.SortHint}" Margin="0,4,0,0" />
 
                         <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Privilege}" />
                         <TextBlock Style="{StaticResource Hint}" Text="{Binding PrivilegeText}" />
