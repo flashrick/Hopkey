@@ -22,7 +22,8 @@ public partial class SettingsWindow : Window
         ApplyChoices();
         ElevateButton.Visibility = vm.IsElevated ? Visibility.Collapsed : Visibility.Visible;
         SourceInitialized += (_, _) => ThemeManager.ApplyWindowChrome(this);
-        Closed += (_, _) => _vm.Dispose();
+        // Detach bindings so a closed window that is not yet collected can't keep writing into its view model.
+        Closed += (_, _) => { DataContext = null; _vm.Dispose(); };
         LocalizationManager.LanguageChanged += OnLanguageChanged;
         Closed += (_, _) => LocalizationManager.LanguageChanged -= OnLanguageChanged;
         Activated += (_, _) => _vm.RefreshPerf();

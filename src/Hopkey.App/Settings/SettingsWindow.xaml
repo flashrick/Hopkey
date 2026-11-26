@@ -119,8 +119,11 @@
 
                         <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.LauncherHotkey}" />
                         <StackPanel Orientation="Horizontal">
-                            <RadioButton GroupName="LauncherKey" Content="{DynamicResource S.Settings.DoubleCtrl}" IsChecked="{Binding LauncherDoubleCtrl}" />
-                            <RadioButton GroupName="LauncherKey" Content="{DynamicResource S.Settings.Combination}" IsChecked="{Binding LauncherCombination}" />
+                            <!-- No GroupName: named groups are process-wide in WPF, so a closed (not yet collected) Settings
+                                 window's radios would join this group and ping-pong with ours until the stack overflows.
+                                 Siblings in the same panel are grouped by parent, which is per window. -->
+                            <RadioButton Content="{DynamicResource S.Settings.DoubleCtrl}" IsChecked="{Binding LauncherDoubleCtrl}" />
+                            <RadioButton Content="{DynamicResource S.Settings.Combination}" IsChecked="{Binding LauncherCombination}" />
                             <local:HotkeyBox Hotkey="{Binding LauncherCombo}" IsEnabled="{Binding LauncherCombination}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
