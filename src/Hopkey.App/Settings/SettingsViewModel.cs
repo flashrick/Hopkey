@@ -185,6 +185,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         get => HotkeySpec.Parse(_draft.Hotkeys.Launcher).IsDoubleCtrl;
         set
         {
+            if (value == LauncherDoubleCtrl) return; // radio-group feedback must not re-notify (re-entrancy loop)
             if (value) _draft.Hotkeys.Launcher = HotkeySpec.DoubleCtrl;
             else if (HotkeySpec.Parse(_draft.Hotkeys.Launcher).IsDoubleCtrl) _draft.Hotkeys.Launcher = "Alt+Space";
             OnPropertyChanged();
