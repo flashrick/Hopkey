@@ -50,6 +50,8 @@ public static class Program
             Section("Exclusion prune on index", PruneTests);
             Section("USN hard-link changes (temp folder)", HardLinkTests);
             Section("History", HistoryTests);
+            Section("User data export/import", UserDataTests);
+            Section("Onboarding", OnboardingTests);
         }
         if (perf) Section($"Performance (synthetic {entries:N0} entries)", () => PerfBenchmark(entries));
         if (crawlDir != null) Section($"Crawl benchmark {crawlDir}", () => CrawlBenchmark(crawlDir));
@@ -444,6 +446,171 @@ public static class Program
         var h2 = HistoryStore.Load(file);
         Check(h2.HasUsage(@"C:\a\x.txt") && h2.GetRecentFolders(5).Count == 2, "history persisted");
         File.Delete(file);
+    }
+
+    private static void OnboardingTests()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hk-onboard-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string Sub(string name) { var d = Path.Combine(dir, name); Directory.CreateDirectory(d); return Path.Combine(d, "settings.json"); }
+            const int V = OnboardingState.CurrentVersion;
+
+            // Brand-new user: empty folder.
+            var fresh = SettingsStore.Load(Sub("fresh"));
+            Check(fresh.IsFirstRun, "empty folder = first run");
+            Eq(fresh.Current.Onboarding!.SeenVersion, 0, "new user has not seen the guide");
+            Check(OnboardingPolicy.ShouldAutoShow(fresh.Current.Onboarding, false, false, false), "auto-show for new user on manual start");
+            Check(!OnboardingPolicy.ShouldAutoShow(fresh.Current.Onboarding!, autostart: true, false, false), "never auto-show at login");
+            Check(!OnboardingPolicy.ShouldAutoShow(fresh.Current.Onboarding!, false, elevatedRestart: true, false), "never auto-show on elevated restart");
+            Eq(fresh.Current.General.Language, OnboardingPolicy.DefaultLanguage(System.Globalization.CultureInfo.CurrentUICulture), "new user language follows Windows");
+            Eq(OnboardingPolicy.DefaultLanguage(new System.Globalization.CultureInfo("zh-TW")), "zh-CN", "zh-TW → Chinese UI");
+            Eq(OnboardingPolicy.DefaultLanguage(new System.Globalization.CultureInfo("de-DE")), "en", "de-DE → English UI");
+
+            // Seen is persisted.
+            fresh.Update(s => s.Onboarding!.SeenVersion = V);
+            var reloaded = SettingsStore.Load(Path.Combine(dir, "fresh", "settings.json"));
+            Check(!reloaded.IsFirstRun && reloaded.Current.Onboarding!.SeenVersion == V, "seen persisted, not first run any more");
+            Check(!OnboardingPolicy.ShouldAutoShow(reloaded.Current.Onboarding!, false, false, false), "no auto-show once seen");
+            Check(OnboardingPolicy.ShouldAutoShow(reloaded.Current.Onboarding!, false, false, forced: true), "--onboarding forces it");
+
+            // Upgrading user: settings.json from before onboarding existed.
+            var oldPath = Sub("old");
+            File.WriteAllText(oldPath, "{ \"general\": { \"language\": \"en\" } }");
+            var old = SettingsStore.Load(oldPath);
+            Check(!old.IsFirstRun, "old settings = not first run");
+            Check(old.Current.Onboarding!.SeenVersion == V && old.Current.Onboarding.TrayBalloonShown, "old settings = existing user, no guide/balloon");
+            Eq(old.Current.General.Language, "en", "existing language untouched");
+            Check(File.ReadAllText(oldPath).Contains("\"onboarding\""), "onboarding state written back");
+
+            // Only history.json (user deleted settings to reset): not a newcomer.
+            var histOnly = Sub("hist");
+            File.WriteAllText(Path.Combine(dir, "hist", "history.json"), "{}");
+            var h = SettingsStore.Load(histOnly);
+            Check(!h.IsFirstRun && h.Current.Onboarding!.SeenVersion == V, "history only = existing user");
+
+            // Corrupt settings: not a newcomer either.
+            var badPath = Sub("bad");
+            File.WriteAllText(badPath, "not json {");
+            Eq(SettingsStore.Load(badPath).Current.Onboarding!.SeenVersion, V, "corrupt settings = existing user");
+
+            // Importing someone's settings keeps this machine's guide state.
+            var other = new AppSettings { Onboarding = OnboardingState.ForNewUser() };
+            reloaded.ReplaceAll(other);
+            Eq(reloaded.Current.Onboarding!.SeenVersion, V, "import keeps local onboarding state");
+
+            // Keycaps.
+            Check(OnboardingPolicy.Keycaps("DoubleCtrl").SequenceEqual(new[] { "Ctrl", "Ctrl" }), "keycaps DoubleCtrl");
+            Check(OnboardingPolicy.Keycaps("Ctrl+Alt+Space").SequenceEqual(new[] { "Ctrl", "Alt", "Space" }), "keycaps combo");
+            Check(OnboardingPolicy.Keycaps("").Count == 0 && OnboardingPolicy.Keycaps(null).Count == 0, "keycaps empty");
+
+            // Tray promotion matching.
+            const string self = @"C:\Apps\Hopkey\Hopkey.exe";
+            Eq(OnboardingPolicy.EvaluatePromotion(new[] { (self, true) }, self), TrayPromotion.Promoted, "full path promoted");
+            Eq(OnboardingPolicy.EvaluatePromotion(new[] { (self, false) }, self), TrayPromotion.Hidden, "full path hidden");
+            Eq(OnboardingPolicy.EvaluatePromotion(new[] { (@"c:\apps\hopkey\HOPKEY.EXE", true) }, self), TrayPromotion.Promoted, "case-insensitive path");
+            Eq(OnboardingPolicy.EvaluatePromotion(new[] { (@"{X}\Hopkey\Hopkey.exe", false), (@"C:\x.exe", true) }, self), TrayPromotion.Hidden, "unique file-name fallback");
+            Eq(OnboardingPolicy.EvaluatePromotion(new[] { (@"D:\a\Hopkey.exe", true), (@"D:\b\Hopkey.exe", false) }, self), TrayPromotion.Unknown, "ambiguous file name = unknown");
+            Eq(OnboardingPolicy.EvaluatePromotion(Array.Empty<(string, bool)>(), self), TrayPromotion.Unknown, "no entries = unknown");
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    private static void UserDataTests()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hk-userdata-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // Source machine: customized settings + usage preferences.
+            var srcSettings = SettingsStore.Load(Path.Combine(dir, "src-settings.json"));
+            srcSettings.Update(s =>
+            {
+                s.General.Language = "en";
+                s.General.Theme = ThemeMode.Dark;
+                s.Hotkeys.Launcher = "Alt+Space";
+                s.Search.MaxResults = 77;
+                s.Search.SortBy = ResultSortMode.ModifiedNewest;
+                s.QuickSwitch.DisabledProcesses.Add("foo.exe");
+                s.Favorites.Add(new FavoriteItem(@"C:\proj", "proj"));
+                s.Exclusion.Rules.Add(new ExclusionRule(ExclusionKind.Name, "my_cache"));
+                s.WebSearch.Add(new WebSearchEngine("dd", "DDG", "https://duckduckgo.com/?q={q}"));
+            });
+            var srcHistory = HistoryStore.Load(Path.Combine(dir, "src-history.json"));
+            srcHistory.RecordLaunch(@"C:\proj\a.txt", UsageKind.File, "ax");
+            srcHistory.RecordLaunch(@"C:\proj\a.txt", UsageKind.File, "ax");
+            srcHistory.RecordFolderVisit(Path.GetTempPath(), FolderVisitSource.Explorer);
+            srcHistory.RecordFacet("ext:pdf");
+            var export = Path.Combine(dir, "out" + UserDataService.FileExtension);
+            new UserDataService(srcSettings, srcHistory).Export(export, "9.9.9");
+            Check(File.Exists(export), "export file written");
+
+            var pkg = UserDataService.Read(export);
+            Eq(pkg.AppVersion, "9.9.9", "package app version");
+            Check(pkg.Settings != null && pkg.History != null, "package has settings + history");
+
+            // Target machine: defaults plus some unrelated history that must be replaced.
+            var dstSettingsFile = Path.Combine(dir, "dst-settings.json");
+            var dstHistoryFile = Path.Combine(dir, "dst-history.json");
+            var dstSettings = SettingsStore.Load(dstSettingsFile);
+            var dstHistory = HistoryStore.Load(dstHistoryFile);
+            dstHistory.RecordLaunch(@"C:\old\b.txt", UsageKind.File, "b");
+            int changed = 0;
+            dstSettings.Changed += (_, _) => changed++;
+            var backupDir = Path.Combine(dir, "backups");
+            var backup = new UserDataService(dstSettings, dstHistory).Import(pkg, "1.0.0", backupDir);
+
+            var s2 = dstSettings.Current;
+            Eq(s2.General.Language, "en", "imported language");
+            Eq(s2.General.Theme, ThemeMode.Dark, "imported theme");
+            Eq(s2.Hotkeys.Launcher, "Alt+Space", "imported hotkey");
+            Eq(s2.Search.MaxResults, 77, "imported max results");
+            Eq(s2.Search.SortBy, ResultSortMode.ModifiedNewest, "imported sort");
+            Check(s2.QuickSwitch.DisabledProcesses.Contains("foo.exe"), "imported quick switch list");
+            Check(s2.Favorites.Exists(f => f.Path == @"C:\proj" && f.Alias == "proj"), "imported favorite");
+            Check(s2.Exclusion.Rules.Exists(r => r.Pattern == "my_cache"), "imported exclusion rule");
+            Check(s2.WebSearch.Exists(w => w.Keyword == "dd"), "imported web search");
+            Check(changed == 1, "settings Changed raised once");
+            Check(dstHistory.HasUsage(@"C:\proj\a.txt") && !dstHistory.HasUsage(@"C:\old\b.txt"), "history replaced");
+            Check(dstHistory.GetBoost(@"C:\proj\a.txt", "ax") > dstHistory.GetBoost(@"C:\proj\a.txt", "zz"), "query association imported");
+            Eq(dstHistory.GetFacetCount("ext:pdf"), 1, "facet usage imported");
+            Eq(dstHistory.GetRecentFolders(5, onlyExisting: false).Count, 1, "recent folders imported");
+
+            // Persisted to disk, not just in memory.
+            Check(SettingsStore.Load(dstSettingsFile).Current.Search.MaxResults == 77, "imported settings saved");
+            Check(HistoryStore.Load(dstHistoryFile).HasUsage(@"C:\proj\a.txt"), "imported history saved");
+
+            // Backup of the previous state can itself be imported back.
+            Check(backup != null && File.Exists(backup), "backup written before import");
+            var old = UserDataService.Read(backup!);
+            Check(old.History!.Usage.Exists(u => u.Key == @"C:\old\b.txt") && old.Settings!.General.Language == OnboardingPolicy.DefaultLanguage(System.Globalization.CultureInfo.CurrentUICulture), "backup holds previous data");
+
+            // Settings-only package leaves history alone.
+            var partial = Path.Combine(dir, "partial.json");
+            File.WriteAllText(partial, "{ \"format\": \"hopkey-userdata\", \"version\": 1, \"settings\": { \"search\": { \"maxResults\": 9999 } } }");
+            var p2 = UserDataService.Read(partial);
+            Check(p2.History == null && p2.Settings!.General != null && p2.Settings.Search.MaxResults == 50, "partial package normalized");
+            new UserDataService(dstSettings, dstHistory).Import(p2, null, backupDir);
+            Check(dstHistory.HasUsage(@"C:\proj\a.txt"), "settings-only import keeps history");
+
+            // Rejections.
+            static bool Rejects(string path, string json)
+            {
+                File.WriteAllText(path, json);
+                try { UserDataService.Read(path); return false; }
+                catch (InvalidDataException) { return true; }
+            }
+            var bad = Path.Combine(dir, "bad.json");
+            Check(Rejects(bad, "{ \"general\": {} }"), "plain settings.json rejected");
+            Check(Rejects(bad, "not json"), "garbage rejected");
+            Check(Rejects(bad, "{ \"format\": \"hopkey-userdata\", \"version\": 99, \"settings\": {} }"), "newer format rejected");
+            Check(Rejects(bad, "{ \"format\": \"hopkey-userdata\", \"version\": 1 }"), "empty package rejected");
+
+            srcHistory.Dispose();
+            dstHistory.Dispose();
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
     }
 
     // ------------------------------------------------------------------ performance

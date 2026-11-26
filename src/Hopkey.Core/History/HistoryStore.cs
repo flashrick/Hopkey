@@ -37,14 +37,7 @@ public sealed class HistoryStore : IDisposable
                 ReadOnlySpan<byte> bytes = File.ReadAllBytes(store._path);
                 if (bytes.StartsWith("﻿"u8)) bytes = bytes[3..];
                 var data = JsonSerializer.Deserialize(bytes, JsonContext.Default.HistoryData);
-                if (data != null)
-                {
-                    foreach (var u in data.Usage ?? new())
-                        if (!string.IsNullOrEmpty(u.Key)) { u.Queries ??= new(); store._usage[u.Key] = u; }
-                    store._recent.AddRange((data.RecentFolders ?? new()).Where(r => !string.IsNullOrEmpty(r.Path)));
-                    foreach (var (token, n) in data.FacetUsage ?? new())
-                        if (!string.IsNullOrEmpty(token) && n > 0) store._facetUsage[token] = n;
-                }
+                if (data != null) store.LoadFrom(data);
             }
         }
         catch (Exception ex)
@@ -53,6 +46,67 @@ public sealed class HistoryStore : IDisposable
             try { File.Copy(store._path, store._path + ".bad", true); } catch { }
         }
         return store;
+    }
+
+    /// <summary>Drops null/empty entries and applies the store's size caps (for loaded or imported data).</summary>
+    public static void Normalize(HistoryData data)
+    {
+        data.Usage = (data.Usage ?? new()).Where(u => u != null && !string.IsNullOrEmpty(u.Key))
+            .GroupBy(u => u.Key, StringComparer.OrdinalIgnoreCase).Select(g => g.MaxBy(u => u.LastUsedUtc)!)
+            .OrderByDescending(u => u.LastUsedUtc).Take(MaxUsage).ToList();
+        foreach (var u in data.Usage)
+        {
+            u.Queries = (u.Queries ?? new()).Where(kv => !string.IsNullOrEmpty(kv.Key) && kv.Value > 0)
+                .OrderByDescending(kv => kv.Value).Take(MaxQueriesPerItem).ToDictionary(kv => kv.Key, kv => kv.Value);
+            if (u.Count < 0) u.Count = 0;
+        }
+        data.RecentFolders = (data.RecentFolders ?? new()).Where(r => r != null && !string.IsNullOrEmpty(r.Path))
+            .Take(MaxRecentFolders).ToList();
+        data.FacetUsage = (data.FacetUsage ?? new()).Where(kv => !string.IsNullOrEmpty(kv.Key) && kv.Value > 0)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+    }
+
+    // Caller holds _gate or the store isn't shared yet.
+    private void LoadFrom(HistoryData data)
+    {
+        foreach (var u in data.Usage ?? new())
+            if (u != null && !string.IsNullOrEmpty(u.Key)) { u.Queries ??= new(); _usage[u.Key] = u; }
+        _recent.AddRange((data.RecentFolders ?? new()).Where(r => r != null && !string.IsNullOrEmpty(r.Path)));
+        foreach (var (token, n) in data.FacetUsage ?? new())
+            if (!string.IsNullOrEmpty(token) && n > 0) _facetUsage[token] = n;
+    }
+
+    /// <summary>Deep copy of everything the store holds (what history.json contains).</summary>
+    public HistoryData ExportData()
+    {
+        lock (_gate)
+        {
+            return new HistoryData
+            {
+                Usage = _usage.Values.Select(u => new UsageRecord
+                {
+                    Key = u.Key, Kind = u.Kind, Count = u.Count, LastUsedUtc = u.LastUsedUtc, Queries = new(u.Queries),
+                }).ToList(),
+                RecentFolders = _recent.Select(r => new RecentFolder { Path = r.Path, LastVisitUtc = r.LastVisitUtc, Source = r.Source }).ToList(),
+                FacetUsage = new(_facetUsage),
+            };
+        }
+    }
+
+    /// <summary>Replaces all history with <paramref name="data"/> (import) and saves immediately.</summary>
+    public void ReplaceAll(HistoryData data)
+    {
+        // Round-trip through JSON so the store never shares objects with the caller.
+        var copy = JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(data, JsonContext.Default.HistoryData), JsonContext.Default.HistoryData)!;
+        Normalize(copy);
+        lock (_gate)
+        {
+            _usage.Clear(); _recent.Clear(); _facetUsage.Clear();
+            LoadFrom(copy);
+        }
+        _dirty = true;
+        SaveNow();
+        try { Changed?.Invoke(); } catch { }
     }
 
     public static string NormalizeQuery(string? q) => (q ?? string.Empty).Trim().ToLowerInvariant();
@@ -233,15 +287,7 @@ public sealed class HistoryStore : IDisposable
             HistoryData data;
             lock (_gate)
             {
-                data = new HistoryData
-                {
-                    Usage = _usage.Values.Select(u => new UsageRecord
-                    {
-                        Key = u.Key, Kind = u.Kind, Count = u.Count, LastUsedUtc = u.LastUsedUtc, Queries = new(u.Queries),
-                    }).ToList(),
-                    RecentFolders = _recent.Select(r => new RecentFolder { Path = r.Path, LastVisitUtc = r.LastVisitUtc, Source = r.Source }).ToList(),
-                    FacetUsage = new(_facetUsage),
-                };
+                data = ExportData(); // Monitor is reentrant
                 _dirty = false;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);

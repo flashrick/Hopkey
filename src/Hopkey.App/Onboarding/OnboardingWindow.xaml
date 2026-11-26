@@ -1,0 +1,308 @@
+<!-- First-run welcome guide — see docs/ONBOARDING.md §5 -->
+<Window x:Class="Hopkey.App.Onboarding.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource S.Onboarding.Title}" Width="600" Height="540"
+        ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
+        Background="{DynamicResource Brush.WindowBg}" Foreground="{DynamicResource Brush.Text}"
+        FontFamily="{DynamicResource Font.Family}" FontSize="13" UseLayoutRounding="True">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Hopkey;component/Themes/SettingsControls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <Style x:Key="Ob.Title" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{DynamicResource Font.Display}" />
+                <Setter Property="FontSize" Value="22" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+            <Style x:Key="Ob.Body" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.SubText}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Margin" Value="0,8,0,16" />
+                <Setter Property="LineHeight" Value="20" />
+            </Style>
+            <Style x:Key="Ob.Icon" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{DynamicResource Font.Icon}" />
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="VerticalAlignment" Value="Top" />
+                <Setter Property="Margin" Value="0,1,10,0" />
+            </Style>
+            <!-- Big keycap for page 1 -->
+            <DataTemplate x:Key="Ob.BigKey">
+                <Border x:Name="Cap" Style="{StaticResource Hk.Keycap}" Height="38" MinWidth="58" CornerRadius="7" Padding="12,0" Margin="4,0">
+                    <TextBlock x:Name="Txt" Text="{Binding}" Style="{StaticResource Hk.KeycapText}" FontSize="14" />
+                </Border>
+                <DataTemplate.Triggers>
+                    <DataTrigger Binding="{Binding DataContext.TriedLauncher, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                        <Setter TargetName="Cap" Property="BorderThickness" Value="1,2,1,1" />
+                        <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.AccentFill}" />
+                        <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.AccentFillEdge}" />
+                        <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource Brush.AccentText}" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+            <!-- Code chip for page 3 -->
+            <Style x:Key="Ob.Chip" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Padding" Value="6,1" />
+                <Setter Property="Margin" Value="0,0,4,3" />
+            </Style>
+            <Style x:Key="Ob.TypeChip" TargetType="Border">
+                <Setter Property="Height" Value="22" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="8,0" />
+                <Setter Property="Margin" Value="0,0,4,4" />
+                <Setter Property="BorderThickness" Value="1,1,1,2" />
+                <Setter Property="Background" Value="{DynamicResource Brush.KeyFace}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.KeyEdge}" />
+            </Style>
+            <Style x:Key="Ob.ChipText" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{DynamicResource Font.Mono}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            </Style>
+            <Style x:Key="Ob.RowText" TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="Ob.Dot" TargetType="Border">
+                <Setter Property="Width" Value="6" />
+                <Setter Property="Height" Value="6" />
+                <Setter Property="CornerRadius" Value="3" />
+                <Setter Property="Margin" Value="0,0,6,0" />
+                <Setter Property="Background" Value="{DynamicResource Brush.Divider}" />
+                <Setter Property="Cursor" Value="Hand" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Border Grid.RowSpan="2" Height="160" VerticalAlignment="Top" Background="{DynamicResource Brush.Aurora}" IsHitTestVisible="False" />
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="28,20,28,0">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Image Source="{StaticResource Img.Logo}" Width="36" Height="36" />
+                <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Hopkey" FontFamily="{DynamicResource Font.Numeric}" FontSize="20" FontWeight="SemiBold" />
+                    <Path Width="96" Height="3" Margin="0,4,0,0" HorizontalAlignment="Left" Stretch="Fill" Data="M0,0 H1"
+                          Stroke="{DynamicResource Brush.Hop}" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                </StackPanel>
+            </StackPanel>
+            <Border Style="{StaticResource Hk.SegmentHost}" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Style="{StaticResource Hk.Segment}" GroupName="Lang" Content="中文" IsChecked="{Binding IsZh}" />
+                    <RadioButton Style="{StaticResource Hk.Segment}" GroupName="Lang" Content="English" IsChecked="{Binding IsEn}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Body -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False" Margin="0,18,0,0">
+            <Grid x:Name="Pages" Margin="28,0,28,16">
+                <Grid.RenderTransform><TranslateTransform x:Name="PageShift" /></Grid.RenderTransform>
+
+                <!-- ============ Page 1: running + try the hotkey ============ -->
+                <StackPanel x:Name="Page0">
+                    <TextBlock Style="{StaticResource Ob.Title}" Text="{DynamicResource S.Onboarding.P1.Title}" />
+                    <TextBlock Style="{StaticResource Ob.Body}" Text="{DynamicResource S.Onboarding.P1.Body}" />
+                    <Border Style="{StaticResource Hk.Section}" Padding="20,20">
+                        <StackPanel>
+                            <TextBlock Text="{Binding LauncherVerb}" HorizontalAlignment="Center" Foreground="{DynamicResource Brush.SubText}" Margin="0,0,0,10" />
+                            <ItemsControl ItemsSource="{Binding LauncherKeys}" ItemTemplate="{StaticResource Ob.BigKey}"
+                                          ItemsPanel="{StaticResource Hk.HPanel}" HorizontalAlignment="Center" Focusable="False" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0"
+                                        Visibility="{Binding HasAltKeys, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{DynamicResource S.Onboarding.P1.Or}" Foreground="{DynamicResource Brush.SubText}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <ItemsControl ItemsSource="{Binding AltKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}"
+                                              ItemsPanel="{StaticResource Hk.HPanel}" Focusable="False" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Rectangle Height="1" Margin="-20,16" Fill="{DynamicResource Brush.Divider}" />
+                            <Grid>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TriedLauncher}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Style="{StaticResource Ob.Icon}" Text="&#xE768;" Foreground="{DynamicResource Brush.Accent}" />
+                                    <TextBlock Text="{DynamicResource S.Onboarding.P1.Try}" TextWrapping="Wrap" MaxWidth="440" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                            Visibility="{Binding TriedLauncher, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Style="{StaticResource Ob.Icon}" Text="&#xE73E;" Foreground="{DynamicResource Brush.Success}" />
+                                    <TextBlock Text="{DynamicResource S.Onboarding.P1.Done}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap" MaxWidth="440" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource Hk.Hint}" Text="{DynamicResource S.Onboarding.P1.Paused}" Foreground="{DynamicResource Brush.Warning}"
+                               Visibility="{Binding IsPaused, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Style="{StaticResource Hk.Hint}" Text="{DynamicResource S.Onboarding.P1.Indexing}"
+                               Visibility="{Binding ShowIndexingHint, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+
+                <!-- ============ Page 2: it lives in the tray ============ -->
+                <StackPanel x:Name="Page1" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource Ob.Title}" Text="{DynamicResource S.Onboarding.P2.Title}" />
+                    <TextBlock Style="{StaticResource Ob.Body}" Text="{DynamicResource S.Onboarding.P2.Body}" />
+                    <!-- Mini taskbar illustration -->
+                    <Border Height="44" CornerRadius="8" Background="{DynamicResource Brush.Plate}" BorderBrush="{DynamicResource Brush.PlateEdge}"
+                            BorderThickness="1" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,0">
+                            <TextBlock FontFamily="{DynamicResource Font.Icon}" Text="&#xE70E;" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource Brush.SubText}" Margin="0,0,12,0" />
+                            <Border BorderBrush="{DynamicResource Brush.Hop}" BorderThickness="2" CornerRadius="6" Padding="4" VerticalAlignment="Center">
+                                <Image Source="{StaticResource Img.Logo}" Width="20" Height="20" />
+                            </Border>
+                            <TextBlock Text="12:30" FontFamily="{DynamicResource Font.Numeric}" Foreground="{DynamicResource Brush.TextFaint}"
+                                       VerticalAlignment="Center" Margin="14,0,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <!-- Live tray state -->
+                    <Border Style="{StaticResource Hk.Section}">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding TrayPromoted, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Style="{StaticResource Ob.Icon}" Text="&#xE73E;" Foreground="{DynamicResource Brush.Success}" />
+                                <TextBlock Text="{DynamicResource S.Onboarding.P2.Promoted}" Foreground="{DynamicResource Brush.Success}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <DockPanel Visibility="{Binding TrayHidden, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Ob.Icon}" Text="&#xE7BA;" Foreground="{DynamicResource Brush.Warning}" />
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource S.Onboarding.P2.Hidden}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Style="{StaticResource Hk.Hint}" Text="{DynamicResource S.Onboarding.P2.HiddenHelp}" Margin="0,4,0,10" />
+                                    <Button Style="{StaticResource Hk.Button.Primary}" HorizontalAlignment="Left"
+                                            Content="{DynamicResource S.Onboarding.P2.OpenTaskbar}" Click="OnOpenTaskbar" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DockPanel Visibility="{Binding TrayUnknown, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Ob.Icon}" Text="&#xE946;" Foreground="{DynamicResource Brush.Accent}" />
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource S.Onboarding.P2.Unknown}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                    <Button Style="{StaticResource Hk.Button}" HorizontalAlignment="Left"
+                                            Content="{DynamicResource S.Onboarding.P2.OpenTaskbar}" Click="OnOpenTaskbar" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+                    <CheckBox Content="{DynamicResource S.Settings.Autostart}" IsChecked="{Binding Autostart}" Margin="0,4,0,0" />
+                    <TextBlock Style="{StaticResource Hk.Hint}" Text="{DynamicResource S.Onboarding.P2.AutostartHint}" Margin="52,0,0,0" />
+                </StackPanel>
+
+                <!-- ============ Page 3: more tricks ============ -->
+                <StackPanel x:Name="Page2" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource Ob.Title}" Text="{DynamicResource S.Onboarding.P3.Title}" Margin="0,0,0,14" />
+
+                    <Border Style="{StaticResource Hk.Section}" Padding="18,12"
+                            Visibility="{Binding ShowDialogsCard, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Hk.SectionTitle}" Text="{DynamicResource S.Onboarding.P3.Dialogs}" Margin="0,0,0,6" />
+                            <Grid Margin="0,4" Visibility="{Binding ShowFollowTip, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock FontFamily="{DynamicResource Font.Icon}" Text="&#xE8AB;" Foreground="{DynamicResource Brush.Accent}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="QuickSwitch" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Follow}" FontWeight="SemiBold" />
+                            </Grid>
+                            <Grid Margin="0,4" Visibility="{Binding ShowToolbarTip, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock FontFamily="{DynamicResource Font.Icon}" Text="&#xE8A1;" Foreground="{DynamicResource Brush.Accent}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{DynamicResource S.Onboarding.P3.ToolbarLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Toolbar}" />
+                            </Grid>
+                            <Grid Margin="0,4" Visibility="{Binding ShowDialogJumpTip, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <ItemsControl ItemsSource="{Binding DialogJumpKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}" ItemsPanel="{StaticResource Hk.HPanel}" VerticalAlignment="Center" Focusable="False" />
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.DialogJump}" />
+                            </Grid>
+                            <Grid Margin="0,4" Visibility="{Binding ShowTypeToSearchTip, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <ItemsControl ItemsSource="{Binding TypeKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}" ItemsPanel="{StaticResource Hk.HPanel}" VerticalAlignment="Center" Focusable="False" />
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.TypeToSearch}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Hk.Section}" Padding="18,12">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Hk.SectionTitle}" Text="{DynamicResource S.Onboarding.P3.Launcher}" Margin="0,0,0,6" />
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <!-- Same look as the launcher's type chips (LauncherWindow.xaml FacetBar) -->
+                                <WrapPanel VerticalAlignment="Center">
+                                    <Border Style="{StaticResource Ob.TypeChip}" Background="{DynamicResource Brush.AccentFill}" BorderBrush="{DynamicResource Brush.AccentFillEdge}" BorderThickness="1,2,1,1">
+                                        <TextBlock Text="{DynamicResource S.Launcher.Facet.Folder}" FontSize="11" Foreground="{DynamicResource Brush.AccentText}" VerticalAlignment="Center" />
+                                    </Border>
+                                    <Border Style="{StaticResource Ob.TypeChip}">
+                                        <TextBlock Text="{DynamicResource S.Launcher.Facet.App}" FontSize="11" Foreground="{DynamicResource Brush.SubText}" VerticalAlignment="Center" />
+                                    </Border>
+                                    <Border Style="{StaticResource Ob.TypeChip}">
+                                        <TextBlock Text="PDF" FontSize="11" Foreground="{DynamicResource Brush.SubText}" VerticalAlignment="Center" />
+                                    </Border>
+                                </WrapPanel>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Filter}" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Ob.Chip}" HorizontalAlignment="Left"><TextBlock Style="{StaticResource Ob.ChipText}" Text="=12*3" /></Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Calc}" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Ob.Chip}" HorizontalAlignment="Left"><TextBlock Style="{StaticResource Ob.ChipText}" Text="g hopkey" /></Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Web}" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ItemsControl ItemsSource="{Binding TabKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}" ItemsPanel="{StaticResource Hk.HPanel}" Focusable="False" Margin="0,0,6,0" />
+                                    <ItemsControl ItemsSource="{Binding OpenLocationKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}" ItemsPanel="{StaticResource Hk.HPanel}" Focusable="False" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Actions}" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <ItemsControl ItemsSource="{Binding DirectKeys}" ItemTemplate="{StaticResource Hk.KeyTemplate}" ItemsPanel="{StaticResource Hk.HPanel}" VerticalAlignment="Center" Focusable="False" />
+                                <TextBlock Grid.Column="1" Style="{StaticResource Ob.RowText}" Text="{DynamicResource S.Onboarding.P3.Direct}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource Hk.Hint}" Text="{DynamicResource S.Onboarding.P3.Footer}" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Height="60" Background="{DynamicResource Brush.Footer}" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0">
+            <Grid Margin="28,0,20,0">
+                <StackPanel x:Name="Dots" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Style="{StaticResource Ob.Dot}" Tag="0" MouseLeftButtonUp="OnDot" />
+                    <Border Style="{StaticResource Ob.Dot}" Tag="1" MouseLeftButtonUp="OnDot" />
+                    <Border Style="{StaticResource Ob.Dot}" Tag="2" MouseLeftButtonUp="OnDot" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="BackButton" Style="{StaticResource Hk.Button}" Content="{DynamicResource S.Onboarding.Back}" Click="OnBack" />
+                    <Button x:Name="SkipButton" Style="{StaticResource Hk.Button}" Content="{DynamicResource S.Onboarding.Skip}" Click="OnSkip" />
+                    <Button x:Name="NextButton" Style="{StaticResource Hk.Button.Primary}" Content="{Binding NextText}" Click="OnNext" IsDefault="True" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

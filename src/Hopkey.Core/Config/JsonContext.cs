@@ -14,6 +14,7 @@ namespace Hopkey.Core.Config;
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(HistoryData))]
 [JsonSerializable(typeof(List<ExclusionRule>))]
+[JsonSerializable(typeof(UserDataPackage))]
 internal sealed partial class JsonContext : JsonSerializerContext
 {
 }

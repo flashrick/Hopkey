@@ -14,6 +14,7 @@ public sealed class TrayIconService : IDisposable
     private readonly WinForms.ToolStripMenuItem _pauseItem;
     private readonly WinForms.ToolStripMenuItem _searchItem;
     private readonly WinForms.ToolStripMenuItem _settingsItem;
+    private readonly WinForms.ToolStripMenuItem _guideItem;
     private readonly WinForms.ToolStripMenuItem _rebuildItem;
     private readonly WinForms.ToolStripMenuItem _adminItem;
     private readonly WinForms.ToolStripMenuItem _exitItem;
@@ -21,6 +22,7 @@ public sealed class TrayIconService : IDisposable
 
     public event Action? SearchRequested;
     public event Action? SettingsRequested;
+    public event Action? GuideRequested;
     public event Action? RebuildRequested;
     public event Action? PauseToggled;
     public event Action? ElevateRequested;
@@ -34,13 +36,14 @@ public sealed class TrayIconService : IDisposable
         // Tag = Segoe Fluent Icons glyph, rendered as the item image by TrayMenuRenderer.
         _searchItem = new WinForms.ToolStripMenuItem("", null, (_, _) => SearchRequested?.Invoke()) { Tag = "" };
         _settingsItem = new WinForms.ToolStripMenuItem("", null, (_, _) => SettingsRequested?.Invoke()) { Tag = "" };
+        _guideItem = new WinForms.ToolStripMenuItem("", null, (_, _) => GuideRequested?.Invoke()) { Tag = "" }; // Lightbulb
         _rebuildItem = new WinForms.ToolStripMenuItem("", null, (_, _) => RebuildRequested?.Invoke()) { Tag = "" };
         _pauseItem = new WinForms.ToolStripMenuItem("", null, (_, _) => PauseToggled?.Invoke()) { Tag = "" };
         _adminItem = new WinForms.ToolStripMenuItem("", null, (_, _) => ElevateRequested?.Invoke()) { Visible = !elevated, Tag = "" };
         _exitItem = new WinForms.ToolStripMenuItem("", null, (_, _) => ExitRequested?.Invoke()) { Tag = "" };
         menu.Items.AddRange(new WinForms.ToolStripItem[]
         {
-            _searchItem, _settingsItem, new WinForms.ToolStripSeparator(), _rebuildItem, _pauseItem, _adminItem,
+            _searchItem, _settingsItem, _guideItem, new WinForms.ToolStripSeparator(), _rebuildItem, _pauseItem, _adminItem,
             new WinForms.ToolStripSeparator(), _exitItem,
         });
         menu.Opening += (_, _) => TrayMenuRenderer.ApplyChrome(menu);
@@ -55,6 +58,7 @@ public sealed class TrayIconService : IDisposable
     {
         _searchItem.Text = LocalizationManager.T("Search");
         _settingsItem.Text = LocalizationManager.T("Settings");
+        _guideItem.Text = LocalizationManager.T("Tray.Guide");
         _rebuildItem.Text = LocalizationManager.T("RebuildIndex");
         _pauseItem.Text = LocalizationManager.T(paused ? "Resume" : "Pause");
         _pauseItem.Tag = paused ? "" : "";

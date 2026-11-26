@@ -86,6 +86,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public event Action? RebuildRequested;
     public event Action? RestartElevatedRequested;
     public event Action? ClearHistoryRequested;
+    public event Action? GuideRequested;
+    public void RequestGuide() => GuideRequested?.Invoke();
     public Func<Core.Config.HotkeySpec, bool>? ProbeHotkey { get; set; }
 
     public SettingsViewModel(SettingsStore store)
@@ -400,6 +402,25 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public string DataDirectory => AppPathsInfo.Roaming;
     public string PerfSummary => PerfLog.Summary();
     public void RefreshPerf() => OnPropertyChanged(nameof(PerfSummary));
+
+    // ---------------- User data export / import
+    public UserDataService? UserData { get; set; }
+
+    public void ExportUserData(string file)
+    {
+        if (UserData == null) throw new InvalidOperationException("User data service not available.");
+        if (_saveTimer.IsEnabled) SaveNow(); // include edits still waiting for the debounce
+        UserData.Export(file, Version);
+    }
+
+    /// <summary>Replaces current settings and history with the package; returns the backup of the previous data.</summary>
+    public string? ImportUserData(UserDataPackage package)
+    {
+        if (UserData == null) throw new InvalidOperationException("User data service not available.");
+        if (_saveTimer.IsEnabled) SaveNow(); // so the pre-import backup has them and the timer can't overwrite the import
+        // The store's Changed event reloads the draft and all lists of this window.
+        return UserData.Import(package, Version);
+    }
 
     public void RefreshLocalization()
     {
