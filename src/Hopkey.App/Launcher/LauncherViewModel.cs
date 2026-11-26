@@ -178,6 +178,7 @@ public sealed class LauncherViewModel : ObservableObject
         _keyHintItems = null;
         OnPropertyChanged(nameof(KeyHintItems));
         OnPropertyChanged(nameof(ContextText));
+        if (_tipIndex >= 0) EmptyTip = LocalizationManager.T(s_tipKeys[_tipIndex]);
         if (_lastStatus != null) UpdateIndexStatus(_lastStatus);
     }
 
@@ -410,8 +411,17 @@ public sealed class LauncherViewModel : ObservableObject
 
     public ActionItemViewModel? SelectedAction => ActionMode && _selectedActionIndex >= 0 && _selectedActionIndex < _actions.Count ? _actions[_selectedActionIndex] : null;
 
+    // Rotating tip under the empty-state hint (only visible with no history/favorites, i.e. for new users).
+    private static readonly string[] s_tipKeys =
+        { "Launcher.Tip.Filter", "Launcher.Tip.Calc", "Launcher.Tip.Web", "Launcher.Tip.Actions", "Launcher.Tip.Pinyin" };
+    private int _tipIndex = -1;
+    private string _emptyTip = "";
+    public string EmptyTip { get => _emptyTip; private set => Set(ref _emptyTip, value); }
+
     public void Reset(bool clearQuery)
     {
+        _tipIndex = (_tipIndex + 1) % s_tipKeys.Length;
+        EmptyTip = LocalizationManager.T(s_tipKeys[_tipIndex]);
         ActionMode = false;
         Message = null;
         if (clearQuery) { _query = ""; OnPropertyChanged(nameof(Query)); }

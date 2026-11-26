@@ -5,6 +5,7 @@ using Hopkey.App.Explorer;
 using Hopkey.App.Hooks;
 using Hopkey.App.Infrastructure;
 using Hopkey.App.Launcher;
+using Hopkey.App.Onboarding;
 using Hopkey.App.QuickSwitch;
 using Hopkey.App.Settings;
 using Hopkey.App.Tray;
@@ -50,6 +51,7 @@ public sealed class AppHost
     private LauncherWindow? _launcher;
     private SettingsWindow? _settingsWindow;
     private SettingsViewModel? _settingsVm;
+    private OnboardingWindow? _onboarding;
     private bool _paused;
     private bool _shutdown;
 
@@ -76,6 +78,7 @@ public sealed class AppHost
         _tray.PauseToggled += TogglePause;
         _tray.ElevateRequested += RestartElevated;
         _tray.ExitRequested += Exit;
+        _tray.GuideRequested += () => ShowOnboarding(auto: false);
 
         _history = HistoryStore.Load();
 
@@ -86,7 +89,7 @@ public sealed class AppHost
         _winEvents.Foreground += hwnd => _launcher?.OnExternalForeground(hwnd);
         _keyboard = new KeyboardHook(_hookThread);
         _hotkeys = new HotkeyService(_keyboard, _ui);
-        _hotkeys.LauncherRequested += () => ToggleLauncher();
+        _hotkeys.LauncherRequested += () => { ToggleLauncher(); _onboarding?.NotifyLauncherHotkey(); };
         _hotkeys.RegistrationFailed += spec => _tray.ShowBalloon(LocalizationManager.F("Tray.HotkeyConflict", spec), true);
         _explorer = new ExplorerService(_history);
         _quickSwitch = new QuickSwitchService(_ui, _winEvents, _explorer, _hotkeys, _history, _settings);
@@ -114,6 +117,9 @@ public sealed class AppHost
 
         _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, StartDeferred);
         if (_options.ElevatedRestart) _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ShowSettings());
+        else if (OnboardingPolicy.ShouldAutoShow(s.Onboarding!, _options.Autostart, _options.ElevatedRestart, _options.ForceOnboarding))
+            _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ShowOnboarding(auto: true));
+        if (_settings.IsFirstRun) Logger.Info("First run (no settings.json / history.json)");
     }
 
     /// <summary>Deferred startup: indexing, search, launcher pre-creation, caches.</summary>
@@ -252,11 +258,59 @@ public sealed class AppHost
         _settingsVm.RebuildRequested += () => _ = _index?.RebuildAsync();
         _settingsVm.RestartElevatedRequested += RestartElevated;
         _settingsVm.ClearHistoryRequested += () => _history.ClearAll();
+        _settingsVm.GuideRequested += () => ShowOnboarding(auto: false);
+        _settingsVm.UserData = new UserDataService(_settings, _history);
         _settingsWindow = new SettingsWindow(_settingsVm);
         _settingsWindow.Closed += (_, _) => { _settingsWindow = null; _settingsVm = null; };
         _settingsWindow.SelectTab(tab);
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    // ------------------------------------------------------------------ onboarding
+
+    private void ShowOnboarding(bool auto)
+    {
+        if (_shutdown) return;
+        if (_onboarding != null) { _onboarding.ActivateWindow(); return; }
+        var t0 = PerfLog.Start();
+        var vm = new OnboardingViewModel(_settings, isFirstRun: auto && _settings.IsFirstRun, isPaused: () => _paused);
+        vm.OpenTaskbarSettingsRequested += OpenTaskbarSettings;
+        var w = _onboarding = new OnboardingWindow(vm);
+        w.Closed += (_, _) => { if (_onboarding == w) _onboarding = null; OnOnboardingClosed(); };
+        w.Show();
+        w.ActivateWindow();
+        // Seen as soon as it pops: closing it mid-way means "not now", and it stays reachable from the tray menu.
+        if (auto && _settings.Current.Onboarding!.SeenVersion < OnboardingState.CurrentVersion)
+            _settings.Update(x => x.Onboarding!.SeenVersion = OnboardingState.CurrentVersion);
+        PerfLog.Stop("onboarding.show", t0);
+    }
+
+    private void OnOnboardingClosed()
+    {
+        if (_shutdown || _app.Dispatcher.HasShutdownStarted) return; // tray Exit while the guide is open: no balloon
+        if (_settings.Current.Onboarding!.TrayBalloonShown) return;
+        if (TrayPromotionProbe.Read() != TrayPromotion.Promoted)
+        {
+            var launcher = _settings.Current.Hotkeys.Launcher;
+            _tray.ShowBalloon(HotkeySpec.Parse(launcher).IsDoubleCtrl
+                ? LocalizationManager.T("Onboarding.Balloon")
+                : LocalizationManager.F("Onboarding.BalloonCombo", launcher));
+        }
+        _settings.Update(x => x.Onboarding!.TrayBalloonShown = true);
+    }
+
+    /// <summary>The exe was launched again while running: bring the guide forward if it's open, else the launcher.</summary>
+    public void OnSecondInstance()
+    {
+        if (_onboarding != null) _onboarding.ActivateWindow();
+        else ShowLauncher();
+    }
+
+    private static void OpenTaskbarSettings()
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:taskbar") { UseShellExecute = true }); }
+        catch (Exception ex) { Logger.Warn("Opening taskbar settings failed", ex); }
     }
 
     private static bool SectionEqual<T>(T a, T b) => JsonSerializer.Serialize(a) == JsonSerializer.Serialize(b);
@@ -320,6 +374,7 @@ public sealed class AppHost
         ApplyHotkeysAndQuickSwitch(_settings.Current);
         _index?.Pause(_paused);
         _tray.UpdateTexts(_paused);
+        _onboarding?.ViewModel.RefreshPaused();
         if (!_paused)
         {
             ReinstallHooks();

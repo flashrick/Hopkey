@@ -18,6 +18,8 @@ public sealed class AppSettings
     public SearchSettings Search { get; set; } = new();
     public List<FavoriteItem> Favorites { get; set; } = new();
     public List<WebSearchEngine> WebSearch { get; set; } = WebSearchEngine.Defaults();
+    /// <summary>Null only while deserializing a settings.json written before onboarding existed (= existing user).</summary>
+    public OnboardingState? Onboarding { get; set; }
 
     public AppSettings Clone() => SettingsStore.CloneSettings(this);
 }
@@ -111,4 +113,18 @@ public sealed class WebSearchEngine
     };
 
     public string BuildUrl(string query) => UrlTemplate.Replace("{q}", Uri.EscapeDataString(query));
+}
+
+/// <summary>First-run guide state (machine-local: not replaced by a user-data import).</summary>
+public sealed class OnboardingState
+{
+    /// <summary>Bump when the guide gains content worth showing to people who saw an older one.</summary>
+    public const int CurrentVersion = 1;
+    /// <summary>Highest guide version shown automatically; 0 = never.</summary>
+    public int SeenVersion { get; set; }
+    /// <summary>The one-time "still running in the tray" balloon has been shown.</summary>
+    public bool TrayBalloonShown { get; set; }
+
+    public static OnboardingState ForNewUser() => new();
+    public static OnboardingState ForExistingUser() => new() { SeenVersion = CurrentVersion, TrayBalloonShown = true };
 }

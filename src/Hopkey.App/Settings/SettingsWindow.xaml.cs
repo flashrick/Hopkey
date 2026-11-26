@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using Hopkey.App.Infrastructure;
@@ -184,6 +184,66 @@ public partial class SettingsWindow : Window
     // ---------------- About
     private void OnOpenDataDir(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.RoamingDirectory);
     private void OnOpenLogDir(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.LogDirectory);
+    private void OnOpenGuide(object sender, RoutedEventArgs e) => _vm.RequestGuide();
+
+    private static string UserDataFilter =>
+        $"{LocalizationManager.T("Settings.UserData.FileFilter")} (*{UserDataService.FileExtension})|*{UserDataService.FileExtension}|JSON (*.json)|*.json|All files|*.*";
+
+    private void OnExportUserData(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Filter = UserDataFilter,
+            FileName = UserDataService.DefaultFileName(DateTime.Now),
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            _vm.ExportUserData(dlg.FileName);
+            MessageBox.Show(this, LocalizationManager.F("Settings.UserData.Exported", dlg.FileName), "Hopkey", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Export user data failed", ex);
+            MessageBox.Show(this, ex.Message, "Hopkey", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnImportUserData(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = UserDataFilter };
+        if (dlg.ShowDialog(this) != true) return;
+        UserDataPackage pkg;
+        try { pkg = UserDataService.Read(dlg.FileName); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, LocalizationManager.F("Settings.UserData.Invalid", ex.Message), "Hopkey", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var contents = "";
+        if (pkg.Settings != null)
+            contents += LocalizationManager.F("Settings.UserData.HasSettings", pkg.Settings.Favorites.Count, pkg.Settings.Exclusion.Rules.Count, pkg.Settings.WebSearch.Count) + "\n";
+        if (pkg.History != null)
+            contents += LocalizationManager.F("Settings.UserData.HasHistory", pkg.History.Usage.Count, pkg.History.RecentFolders.Count) + "\n";
+        var exported = pkg.ExportedUtc == default ? "?" : pkg.ExportedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        var confirm = LocalizationManager.F("Settings.UserData.Confirm", contents, exported, pkg.AppVersion ?? "?");
+        if (MessageBox.Show(this, confirm, "Hopkey", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var backup = _vm.ImportUserData(pkg);
+            var msg = LocalizationManager.T("Settings.UserData.Imported");
+            if (backup != null) msg += "\n\n" + LocalizationManager.F("Settings.UserData.Backup", backup);
+            MessageBox.Show(this, msg, "Hopkey", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Import user data failed", ex);
+            MessageBox.Show(this, ex.Message, "Hopkey", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     public static void OpenFolder(string dir)
     {

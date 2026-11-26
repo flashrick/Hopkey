@@ -5,7 +5,7 @@ using Hopkey.Core.Util;
 
 namespace Hopkey.App;
 
-public sealed record StartupOptions(bool Autostart, int WaitPid, bool ElevatedRestart);
+public sealed record StartupOptions(bool Autostart, int WaitPid, bool ElevatedRestart, bool ForceOnboarding = false);
 
 public static class Program
 {
@@ -39,7 +39,7 @@ public static class Program
         var app = new App(options);
         app.InitializeComponent();
         AppHost.Instance = null;
-        instance.Listen(() => app.Dispatcher.BeginInvoke(() => AppHost.Instance?.ShowLauncher()));
+        instance.Listen(() => app.Dispatcher.BeginInvoke(() => AppHost.Instance?.OnSecondInstance()));
         int code = app.Run();
         Logger.Info("Hopkey exited");
         Logger.Flush();
@@ -48,7 +48,7 @@ public static class Program
 
     private static StartupOptions Parse(string[] args)
     {
-        bool autostart = false, elevated = false;
+        bool autostart = false, elevated = false, onboarding = false;
         int waitPid = 0;
         for (int i = 0; i < args.Length; i++)
         {
@@ -56,11 +56,12 @@ public static class Program
             {
                 case "--autostart": autostart = true; break;
                 case "--elevated-restart": elevated = true; break;
+                case "--onboarding": onboarding = true; break;
                 case "--wait-pid" when i + 1 < args.Length:
                     int.TryParse(args[++i], out waitPid);
                     break;
             }
         }
-        return new StartupOptions(autostart, waitPid, elevated);
+        return new StartupOptions(autostart, waitPid, elevated, onboarding);
     }
 }

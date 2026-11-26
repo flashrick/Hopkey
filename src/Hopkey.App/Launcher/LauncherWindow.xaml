@@ -285,6 +285,8 @@
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                 <TextBlock x:Name="EmptyHint" Text="{DynamicResource S.Launcher.EmptyHint}" Margin="0,14,0,0"
                            HorizontalAlignment="Center" Foreground="{DynamicResource Brush.SubText}" />
+                <TextBlock Text="{Binding EmptyTip}" Margin="0,6,0,0" HorizontalAlignment="Center"
+                           FontFamily="{DynamicResource Font.Small}" FontSize="11.5" Foreground="{DynamicResource Brush.TextFaint}" />
             </StackPanel>
         </Grid>
 
