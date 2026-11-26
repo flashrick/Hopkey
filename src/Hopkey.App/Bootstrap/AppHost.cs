@@ -81,6 +81,9 @@ public sealed class AppHost
 
         _hookThread = new DispatcherThread("CL-Hooks", ThreadPriority.Highest);
         _winEvents = new WinEventHub(_hookThread, _ui);
+        // Backstop for click-away: WPF's Deactivated isn't always raised (the launcher could stay up after the user
+        // clicked another app). The hook skips our own process, so this only fires for other apps' windows.
+        _winEvents.Foreground += hwnd => _launcher?.OnExternalForeground(hwnd);
         _keyboard = new KeyboardHook(_hookThread);
         _hotkeys = new HotkeyService(_keyboard, _ui);
         _hotkeys.LauncherRequested += () => ToggleLauncher();

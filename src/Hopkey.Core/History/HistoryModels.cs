@@ -26,4 +26,6 @@ public sealed class HistoryData
     public int Version { get; set; } = 1;
     public List<UsageRecord> Usage { get; set; } = new();
     public List<RecentFolder> RecentFolders { get; set; } = new();
+    /// <summary>Launcher type-filter chip clicks, by filter token ("folder:", "app:", "ext:pdf").</summary>
+    public Dictionary<string, int> FacetUsage { get; set; } = new();
 }

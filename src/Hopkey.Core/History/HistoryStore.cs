@@ -15,6 +15,7 @@ public sealed class HistoryStore : IDisposable
     private readonly object _gate = new();
     private readonly Dictionary<string, UsageRecord> _usage = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentFolder> _recent = new();
+    private readonly Dictionary<string, int> _facetUsage = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _saveTimer;
     private bool _dirty;
 
@@ -41,6 +42,8 @@ public sealed class HistoryStore : IDisposable
                     foreach (var u in data.Usage ?? new())
                         if (!string.IsNullOrEmpty(u.Key)) { u.Queries ??= new(); store._usage[u.Key] = u; }
                     store._recent.AddRange((data.RecentFolders ?? new()).Where(r => !string.IsNullOrEmpty(r.Path)));
+                    foreach (var (token, n) in data.FacetUsage ?? new())
+                        if (!string.IsNullOrEmpty(token) && n > 0) store._facetUsage[token] = n;
                 }
             }
         }
@@ -132,6 +135,24 @@ public sealed class HistoryStore : IDisposable
         }
     }
 
+    /// <summary>Count a click on a launcher type-filter chip; more clicks rank that chip earlier.</summary>
+    public void RecordFacet(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return;
+        lock (_gate)
+        {
+            _facetUsage[token] = _facetUsage.GetValueOrDefault(token) + 1;
+            if (_facetUsage.Count > 200)
+                foreach (var k in _facetUsage.OrderBy(kv => kv.Value).Take(50).Select(kv => kv.Key).ToList()) _facetUsage.Remove(k);
+        }
+        ScheduleSave();
+    }
+
+    public int GetFacetCount(string token)
+    {
+        lock (_gate) return _facetUsage.GetValueOrDefault(token);
+    }
+
     public bool HasUsage(string key)
     {
         lock (_gate) return _usage.ContainsKey(key);
@@ -193,7 +214,7 @@ public sealed class HistoryStore : IDisposable
 
     public void ClearAll()
     {
-        lock (_gate) { _recent.Clear(); _usage.Clear(); }
+        lock (_gate) { _recent.Clear(); _usage.Clear(); _facetUsage.Clear(); }
         ScheduleSave();
     }
 
@@ -219,6 +240,7 @@ public sealed class HistoryStore : IDisposable
                         Key = u.Key, Kind = u.Kind, Count = u.Count, LastUsedUtc = u.LastUsedUtc, Queries = new(u.Queries),
                     }).ToList(),
                     RecentFolders = _recent.Select(r => new RecentFolder { Path = r.Path, LastVisitUtc = r.LastVisitUtc, Source = r.Source }).ToList(),
+                    FacetUsage = new(_facetUsage),
                 };
                 _dirty = false;
             }
