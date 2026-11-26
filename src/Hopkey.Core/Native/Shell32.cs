@@ -111,6 +111,35 @@ public static class Dwmapi
         int v = dark ? 1 : 0;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref v, sizeof(int));
     }
+
+    public const int DWMWA_NCRENDERING_POLICY = 2;
+    public const int DWMWA_BORDER_COLOR = 34;   // Win11 22000+
+    public const int DWMWA_CAPTION_COLOR = 35;
+    public const int DWMWA_TEXT_COLOR = 36;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS { public int Left, Right, Top, Bottom; }
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
+
+    /// <summary>Sets a DWM color attribute. colorRef is 0x00BBGGRR.</summary>
+    public static void SetColor(IntPtr hwnd, int attr, uint colorRef)
+    {
+        int v = unchecked((int)colorRef);
+        DwmSetWindowAttribute(hwnd, attr, ref v, sizeof(int));
+    }
+
+    /// <summary>Borderless windows: ask DWM to draw its drop shadow. Call once after the HWND exists.</summary>
+    public static void EnableShadow(IntPtr hwnd)
+    {
+        int policy = 2; // DWMNCRP_ENABLED
+        DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, ref policy, sizeof(int));
+        var m = new MARGINS { Bottom = 1 }; // 1px hidden under WPF's opaque content
+        DwmExtendFrameIntoClientArea(hwnd, ref m);
+    }
+
+    public static bool IsWin11 => Environment.OSVersion.Version.Build >= 22000;
 }
 
 public static class Gdi32

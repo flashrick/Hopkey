@@ -37,6 +37,7 @@ public static class HighlightText
             {
                 run.FontWeight = FontWeights.SemiBold;
                 run.SetResourceReference(TextElement.ForegroundProperty, "Brush.Highlight");
+                run.SetResourceReference(TextElement.BackgroundProperty, "Brush.HighlightBg");
             }
             tb.Inlines.Add(run);
             pos = end;

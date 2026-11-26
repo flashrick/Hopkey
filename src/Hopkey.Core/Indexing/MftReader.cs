@@ -7,7 +7,7 @@ namespace Hopkey.Core.Indexing;
 
 /// <summary>
 /// Reads the NTFS master file table straight from the volume (like Everything): $MFT's data runs from record 0, then
-/// one sequential pass over all file records, collecting every $FILE_NAME 鈥?i.e. every hard link, which
+/// one sequential pass over all file records, collecting every $FILE_NAME — i.e. every hard link, which
 /// FSCTL_ENUM_USN_DATA can't return and FSCTL_QUERY_FILE_LAYOUT refuses on the system volume.
 /// Any inconsistency makes it give up so the caller can fall back to the FSCTL enumerations.
 /// </summary>

@@ -1,0 +1,207 @@
+<!-- Shared "Arc & Keycap" building blocks (see docs/UI-REDESIGN.md §6). Merged into App resources; the QuickSwitch
+     toolbar loads its own instance on its thread. Brushes are always DynamicResource (theme dictionary from ThemeManager). -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:hk="clr-namespace:Hopkey.App.Infrastructure">
+
+    <hk:KeyChordConverter x:Key="KeyChord" />
+    <ItemsPanelTemplate x:Key="Hk.HPanel"><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+
+    <!-- The brand "hop arc" (from assets/icon/hopkey.svg) -->
+    <Geometry x:Key="Geo.HopArc">M94,132 Q128,84 162,132 M146,128 L162,134 L168,116</Geometry>
+
+    <!-- ===================== Keycaps ===================== -->
+    <Style x:Key="Hk.Keycap" TargetType="Border">
+        <Setter Property="MinWidth" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Padding" Value="5,0" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="BorderThickness" Value="1,1,1,2" />
+        <Setter Property="Background" Value="{DynamicResource Brush.KeyFace}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.KeyEdge}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+    <Style x:Key="Hk.KeycapText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Mono}" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.KeyText}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <DataTemplate x:Key="Hk.KeyTemplate">
+        <Border Style="{StaticResource Hk.Keycap}" Margin="0,0,3,0">
+            <TextBlock Text="{Binding}" Style="{StaticResource Hk.KeycapText}" />
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="Hk.KeyTemplateSmall">
+        <Border Style="{StaticResource Hk.Keycap}" Height="18" MinWidth="18" Padding="4,0" Margin="0,0,3,0">
+            <TextBlock Text="{Binding}" Style="{StaticResource Hk.KeycapText}" FontSize="10" />
+        </Border>
+    </DataTemplate>
+
+    <!-- A TextBox with nothing but its content host: no border, no focus visual (launcher query). -->
+    <ControlTemplate x:Key="Hk.BareTextBox" TargetType="TextBox">
+        <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Background="Transparent" />
+    </ControlTemplate>
+
+    <!-- ===================== Brand logo (vector) ===================== -->
+    <DrawingImage x:Key="Img.Logo">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Geometry="M56,0 H200 A56,56 0 0 1 256,56 V200 A56,56 0 0 1 200,256 H56 A56,56 0 0 1 0,200 V56 A56,56 0 0 1 56,0 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#6366F1" Offset="0" />
+                            <GradientStop Color="#4338CA" Offset="1" />
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+                <DrawingGroup>
+                    <DrawingGroup.Transform>
+                        <RotateTransform Angle="-9" CenterX="128" CenterY="120" />
+                    </DrawingGroup.Transform>
+                    <GeometryDrawing Brush="#A5B4FC" Geometry="M88,52 H168 A30,30 0 0 1 198,82 V154 A30,30 0 0 1 168,184 H88 A30,30 0 0 1 58,154 V82 A30,30 0 0 1 88,52 Z" />
+                    <GeometryDrawing Brush="#FFFFFF" Geometry="M94,56 H162 A24,24 0 0 1 186,80 V136 A24,24 0 0 1 162,160 H94 A24,24 0 0 1 70,136 V80 A24,24 0 0 1 94,56 Z" />
+                    <GeometryDrawing Geometry="M94,132 Q128,84 162,132 M146,128 L162,134 L168,116">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#4F46E5" Thickness="14" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- ===================== Menus & tooltips ===================== -->
+    <Style x:Key="Hk.ContextMenu" TargetType="ContextMenu">
+        <Setter Property="hk:PopupChrome.Rounded" Value="True" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{DynamicResource Brush.Card}" Padding="4" MinWidth="220">
+                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Hk.MenuItem" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Grid x:Name="Root" MinHeight="32" Margin="0,1" Background="Transparent">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent" />
+                        <Rectangle x:Name="Bar" Width="3" Height="16" RadiusX="1.5" RadiusY="1.5" HorizontalAlignment="Left"
+                                   Margin="2,0,0,0" Fill="{DynamicResource Brush.HopV}" Visibility="Collapsed" />
+                        <Grid Margin="10,6,12,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="26" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter ContentSource="Icon" VerticalAlignment="Center" />
+                            <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Grid>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Selected}" />
+                            <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Rectangle Height="1" Margin="10,4" Fill="{DynamicResource Brush.Divider}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ToolTip">
+        <Setter Property="hk:PopupChrome.Rounded" Value="True" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{DynamicResource Brush.Card}" Padding="10,6" MaxWidth="420">
+                        <ContentPresenter TextElement.Foreground="{DynamicResource Brush.Text}" TextElement.FontSize="12"
+                                          TextElement.FontFamily="{DynamicResource Font.Family}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===================== Scrollbar (thin, no arrows) ===================== -->
+    <Style x:Key="Hk.ScrollThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="B" CornerRadius="3" Margin="3" Background="{DynamicResource Brush.ScrollThumb}" />
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="B" Property="Margin" Value="2" />
+                            <Setter TargetName="B" Property="Background" Value="{DynamicResource Brush.ScrollThumbHover}" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="B" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="10" />
+        <Setter Property="MinWidth" Value="10" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                        <Track.Thumb>
+                            <Thumb Style="{StaticResource Hk.ScrollThumb}" />
+                        </Track.Thumb>
+                    </Track>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="10" />
+                <Setter Property="MinHeight" Value="10" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource Hk.ScrollThumb}" />
+                                </Track.Thumb>
+                            </Track>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

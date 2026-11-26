@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Hopkey.App.Infrastructure;
 using Hopkey.Core.Native;
@@ -53,6 +55,9 @@ public partial class LauncherWindow : Window
             ex |= User32.WS_EX_TOOLWINDOW;
             User32.SetWindowLongPtr(_hwnd, User32.GWL_EXSTYLE, new IntPtr(ex));
             Dwmapi.SetRoundCorners(_hwnd);
+            Dwmapi.EnableShadow(_hwnd);
+            // Win11 draws a rounded brand border via DWM (ApplyWindowChrome); Win10 needs WPF's square one.
+            if (!Dwmapi.IsWin11) BorderThickness = new Thickness(1);
             ThemeManager.ApplyWindowChrome(this);
         };
         Activated += (_, _) => Logger.Debug("Launcher activated");
@@ -95,8 +100,32 @@ public partial class LauncherWindow : Window
                 break;
             case nameof(LauncherViewModel.ActionMode):
                 ResultList.Visibility = _vm.ActionMode ? Visibility.Hidden : Visibility.Visible;
+                if (_vm.ActionMode && _visible && SystemParameters.ClientAreaAnimation)
+                {
+                    ActionPanel.BeginAnimation(OpacityProperty, s_actionFade);
+                    ActionShift.BeginAnimation(TranslateTransform.XProperty, s_actionSlide);
+                }
                 break;
         }
+    }
+
+    // Open / action-mode motion (docs/UI-REDESIGN.md §10). Frozen and shared: no per-show allocation.
+    private static readonly IEasingFunction s_out = Frozen(new CubicEase { EasingMode = EasingMode.EaseOut });
+    private static readonly DoubleAnimation s_fade = Frozen(new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(110)) { EasingFunction = s_out });
+    private static readonly DoubleAnimation s_sweep = Frozen(new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)) { EasingFunction = s_out });
+    private static readonly DoubleAnimation s_hop = Frozen(new DoubleAnimation(-3, 0, TimeSpan.FromMilliseconds(150))
+        { EasingFunction = Frozen(new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.6 }) });
+    private static readonly DoubleAnimation s_actionFade = Frozen(new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(100)) { EasingFunction = s_out });
+    private static readonly DoubleAnimation s_actionSlide = Frozen(new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(120)) { EasingFunction = s_out });
+
+    private static T Frozen<T>(T f) where T : Freezable { f.Freeze(); return f; }
+
+    private void PlayOpenAnimation()
+    {
+        if (!SystemParameters.ClientAreaAnimation) return;
+        Root.BeginAnimation(OpacityProperty, s_fade);
+        HopLineScale.BeginAnimation(ScaleTransform.ScaleXProperty, s_sweep);
+        HopGlyphShift.BeginAnimation(TranslateTransform.YProperty, s_hop);
     }
 
     /// <summary>Create the HWND and run first layout/template instantiation off-screen so the first show is instant.</summary>
@@ -133,6 +162,7 @@ public partial class LauncherWindow : Window
         PositionWindow(ctx);
         if (!IsVisible) Show();
         _visible = true;
+        PlayOpenAnimation();
         bool activated = ForegroundHelper.Activate(_hwnd);
         Logger.Debug($"Launcher Activate() → {activated}, foreground now 0x{User32.GetForegroundWindow():X}");
         Activate();

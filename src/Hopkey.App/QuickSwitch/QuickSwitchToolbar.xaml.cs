@@ -44,15 +44,31 @@ public partial class QuickSwitchToolbar : Window
             ex |= User32.WS_EX_TOOLWINDOW | User32.WS_EX_NOACTIVATE;
             ex &= ~User32.WS_EX_APPWINDOW;
             User32.SetWindowLongPtr(Handle, User32.GWL_EXSTYLE, new IntPtr(ex));
-            Dwmapi.SetRoundCorners(Handle, small: true);
+            Dwmapi.SetRoundCorners(Handle);
+            Dwmapi.EnableShadow(Handle);
+            if (!Dwmapi.IsWin11) BorderThickness = new Thickness(1);
+            ThemeManager.ApplyChrome(Handle, borderless: true);
             HwndSource.FromHwnd(Handle)?.AddHook(WndProc);
         };
     }
+
+    private bool _controlsLoaded;
 
     public void ApplyResources()
     {
         ThemeManager.ReplaceDictionary(Resources, ThemeManager.CreateDictionary(ThemeManager.IsDark));
         LocalizationManager.ApplyTo(Resources);
+        // This window lives on its own thread: give it a private copy of the shared control styles so no lookup
+        // falls through to the Application's (UI-thread-owned) resources.
+        if (!_controlsLoaded)
+        {
+            Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("pack://application:,,,/Hopkey;component/Themes/Controls.xaml"),
+            });
+            _controlsLoaded = true;
+        }
+        if (Handle != IntPtr.Zero) ThemeManager.ApplyChrome(Handle, borderless: true);
     }
 
     /// <summary>Physical-pixel position the host wants; enforced against anything else moving the window (WPF layout, re-shows).</summary>
@@ -174,11 +190,11 @@ public partial class QuickSwitchToolbar : Window
         {
             PlacementTarget = target,
             Placement = Side == ToolbarSide.Above ? PlacementMode.Top : PlacementMode.Bottom,
-            Background = (Brush)Resources["Brush.Card"],
-            Foreground = (Brush)Resources["Brush.Text"],
-            BorderBrush = (Brush)Resources["Brush.Border"],
-            FontFamily = (FontFamily)Resources["Font.Family"],
+            VerticalOffset = Side == ToolbarSide.Above ? -4 : 4,
         };
+        // A code-built menu has no logical parent: hand it this window's resources (theme + control styles).
+        menu.Resources.MergedDictionaries.Add(Resources);
+        menu.Style = (Style)Resources["Hk.ContextMenu"];
         menu.Opened += (_, _) => _menusOpen++;
         menu.Closed += (_, _) => _menusOpen = Math.Max(0, _menusOpen - 1);
         return menu;
@@ -221,6 +237,7 @@ public partial class QuickSwitchToolbar : Window
                 VerticalAlignment = VerticalAlignment.Center,
             } : null,
         };
+        item.Style = (Style)Resources["Hk.MenuItem"];
         if (onClick != null) item.Click += (_, _) => onClick();
         return item;
     }

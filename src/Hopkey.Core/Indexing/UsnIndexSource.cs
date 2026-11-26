@@ -27,7 +27,7 @@ public sealed unsafe class UsnIndexSource : IIndexSource
     private CancellationTokenSource? _watchCts;
     private ulong _rootFrn;
 
-    /// <summary>Tests only: force "mft", "layout" or "enum" as the build enumeration (default: mft 鈫?layout 鈫?enum).</summary>
+    /// <summary>Tests only: force "mft", "layout" or "enum" as the build enumeration (default: mft → layout → enum).</summary>
     internal static string? TestMethod;
     /// <summary>The enumeration the last build used.</summary>
     internal string? LastMethod { get; private set; }
@@ -243,7 +243,7 @@ public sealed unsafe class UsnIndexSource : IIndexSource
                     if (major == 2)
                     {
                         ulong frn = *(ulong*)(rec + UsnNative.V2_FrnOffset);
-                        // Skip NTFS metafiles ($MFT鈥?Extend, reserved records < 24) and the root itself
+                        // Skip NTFS metafiles ($MFT…$Extend, reserved records < 24) and the root itself
                         if ((frn & 0x0000FFFFFFFFFFFF) >= 24 && frn != _rootFrn)
                         {
                             ulong parent = *(ulong*)(rec + UsnNative.V2_ParentFrnOffset);
@@ -461,7 +461,7 @@ internal static class UsnChangeApplier
             {
                 if (!v.TryFindByKey(c.ParentKey, out int parent))
                 {
-                    // Parent not indexed (excluded/unknown) 鈫?item should not be indexed.
+                    // Parent not indexed (excluded/unknown) → item should not be indexed.
                     if (exists) v.DeleteSubtree(idx);
                     return;
                 }
