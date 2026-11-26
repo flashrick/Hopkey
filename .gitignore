@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+publish/
+artifacts/
+*.nupkg
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
+
+# Runtime / test leftovers
+*.log
+logs/
+*.jitprofile
+TestResults/
+tests/usn-live-probe/
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

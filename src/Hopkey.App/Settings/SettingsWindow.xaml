@@ -1,0 +1,308 @@
+<Window x:Class="Hopkey.App.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Hopkey.App.Settings"
+        Title="{DynamicResource S.Settings.Title}" Width="820" Height="600" MinWidth="680" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Background}" Foreground="{DynamicResource Brush.Text}"
+        FontFamily="{DynamicResource Font.Family}" FontSize="13" UseLayoutRounding="True">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <Style TargetType="TextBlock" x:Key="Header">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="SubHeader">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,16,0,6" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="Hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.SubText}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="Margin" Value="0,5" />
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="Margin" Value="0,4,16,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Brush.Input}" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="Padding" Value="4,3" />
+        </Style>
+        <Style TargetType="local:HotkeyBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="180" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="MinWidth" Value="72" />
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+            <Setter Property="RowBackground" Value="{DynamicResource Brush.Card}" />
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource Brush.CardAlt}" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="CanUserDeleteRows" Value="False" />
+            <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="RowHeight" Value="28" />
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource Brush.CardAlt}" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Padding="14,9" Margin="6,2" CornerRadius="6" Background="Transparent">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Selected}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Hover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+            <Setter Property="Width" Value="170" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TabControl TabStripPlacement="Left" Background="{DynamicResource Brush.Card}" BorderThickness="0" Padding="0" x:Name="Tabs">
+
+            <!-- ======================== General ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.General}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,18">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Header}" Text="{DynamicResource S.Settings.General}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Autostart}" IsChecked="{Binding Autostart}" />
+                        <CheckBox Content="{DynamicResource S.Settings.AutostartElevated}" IsChecked="{Binding AutostartElevated}"
+                                  IsEnabled="{Binding CanAutostartElevated}" Margin="22,2,0,6" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Language}" />
+                        <ComboBox Width="200" HorizontalAlignment="Left" ItemsSource="{Binding Languages}" DisplayMemberPath="Display"
+                                  SelectedValuePath="Value" SelectedValue="{Binding Language}" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Theme}" />
+                        <ComboBox Width="200" HorizontalAlignment="Left" ItemsSource="{Binding Themes}" DisplayMemberPath="Display"
+                                  SelectedValuePath="Value" SelectedValue="{Binding Theme}" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.LauncherHotkey}" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton GroupName="LauncherKey" Content="{DynamicResource S.Settings.DoubleCtrl}" IsChecked="{Binding LauncherDoubleCtrl}" />
+                            <RadioButton GroupName="LauncherKey" Content="{DynamicResource S.Settings.Combination}" IsChecked="{Binding LauncherCombination}" />
+                            <local:HotkeyBox Hotkey="{Binding LauncherCombo}" IsEnabled="{Binding LauncherCombination}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{DynamicResource S.Settings.AltHotkey}" Width="120" VerticalAlignment="Center" />
+                            <local:HotkeyBox Hotkey="{Binding LauncherAlt}" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="{DynamicResource S.Settings.HotkeyHint}" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding HotkeyError}" Foreground="{DynamicResource Brush.Error}" Margin="0,4,0,0" />
+                        <CheckBox Content="{DynamicResource S.Settings.TypeToSearch}" IsChecked="{Binding TypeToSearch}" Margin="0,10,0,0" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Search}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Search.Pinyin}" IsChecked="{Binding Pinyin}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Search.HistoryBoost}" IsChecked="{Binding HistoryBoost}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="{DynamicResource S.Settings.Search.MaxResults}" Width="120" VerticalAlignment="Center" />
+                            <TextBox Width="80" Text="{Binding MaxResults, UpdateSourceTrigger=LostFocus}" />
+                            <Button Content="{DynamicResource S.Settings.Search.ClearHistory}" Margin="16,0,0,0" Click="OnClearHistory" />
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Privilege}" />
+                        <TextBlock Style="{StaticResource Hint}" Text="{Binding PrivilegeText}" />
+                        <Button Content="{DynamicResource S.Tray.RunAsAdmin}" HorizontalAlignment="Left" Margin="0,8,0,0" Click="OnRestartElevated"
+                                x:Name="ElevateButton" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ======================== QuickSwitch ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.QuickSwitch}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,18">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Header}" Text="{DynamicResource S.Settings.QuickSwitch}" />
+                        <CheckBox Content="{DynamicResource S.Settings.QS.Enabled}" IsChecked="{Binding QsEnabled}" />
+                        <StackPanel IsEnabled="{Binding QsEnabled}" Margin="22,0,0,0">
+                            <CheckBox Content="{DynamicResource S.Settings.QS.ShowToolbar}" IsChecked="{Binding QsShowToolbar}" />
+                            <CheckBox Content="{DynamicResource S.Settings.QS.Follow}" IsChecked="{Binding QsFollow}" />
+                            <CheckBox Content="{DynamicResource S.Settings.QS.AutoOnOpen}" IsChecked="{Binding QsAutoOnOpen}" />
+                            <StackPanel Orientation="Horizontal" Margin="22,2,0,6" IsEnabled="{Binding QsAutoOnOpen}">
+                                <TextBlock Text="{DynamicResource S.Settings.QS.MaxAge}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBox Width="60" Text="{Binding QsMaxAge, UpdateSourceTrigger=LostFocus}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox Content="{DynamicResource S.Settings.QS.DialogJump}" IsChecked="{Binding QsDialogJump}" VerticalAlignment="Center" />
+                                <local:HotkeyBox Hotkey="{Binding DialogJump}" Margin="12,0,0,0" IsEnabled="{Binding QsDialogJump}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.QS.DisabledApps}" />
+                            <TextBox Height="70" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Text="{Binding QsDisabledApps, UpdateSourceTrigger=LostFocus}" />
+                            <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.QS.AutoExcludedApps}" />
+                            <TextBox Height="70" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Text="{Binding QsAutoExcludedApps, UpdateSourceTrigger=LostFocus}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ======================== Index & Exclusions ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.Index}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,18">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Header}" Text="{DynamicResource S.Settings.Index}" />
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Index.Roots}" Margin="0,0,0,6" />
+                        <CheckBox Content="{DynamicResource S.Settings.Index.AllDrives}" IsChecked="{Binding AllDrives}" />
+                        <ListBox x:Name="RootsList" ItemsSource="{Binding Roots}" Height="70" Background="{DynamicResource Brush.Card}"
+                                 Foreground="{DynamicResource Brush.Text}" BorderBrush="{DynamicResource Brush.Border}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <Button Content="{DynamicResource S.Settings.Index.AddFolder}" Click="OnAddRoot" />
+                            <Button Content="{DynamicResource S.Remove}" Click="OnRemoveRoot" />
+                        </StackPanel>
+                        <CheckBox Content="{DynamicResource S.Settings.Index.UseUsn}" IsChecked="{Binding UseUsn}" Margin="0,10,0,0" />
+                        <CheckBox Content="{DynamicResource S.Settings.Index.Apps}" IsChecked="{Binding IndexApps}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Index.Uwp}" IsChecked="{Binding IndexUwp}" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Index.Status}" />
+                        <TextBlock Style="{StaticResource Hint}" Text="{Binding IndexStatusText}" />
+                        <Button Content="{DynamicResource S.RebuildIndex}" HorizontalAlignment="Left" Margin="0,6,0,0" Click="OnRebuild" />
+
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Index.Exclusions}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Index.ExcludeHidden}" IsChecked="{Binding ExcludeHidden}" />
+                        <CheckBox Content="{DynamicResource S.Settings.Index.ExcludeSystem}" IsChecked="{Binding ExcludeSystem}" />
+                        <DataGrid x:Name="RulesGrid" ItemsSource="{Binding Rules}" Height="240" Margin="0,6,0,0">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="{DynamicResource S.Settings.Index.Col.Enabled}" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="50" />
+                                <DataGridComboBoxColumn x:Name="KindColumn" Header="{DynamicResource S.Settings.Index.Col.Kind}" Width="90"
+                                                        SelectedValueBinding="{Binding Kind}" SelectedValuePath="Value" DisplayMemberPath="Display" />
+                                <DataGridTextColumn Header="{DynamicResource S.Settings.Index.Col.Pattern}" Binding="{Binding Pattern}" Width="*" />
+                                <DataGridComboBoxColumn x:Name="TargetColumn" Header="{DynamicResource S.Settings.Index.Col.Target}" Width="120"
+                                                        SelectedValueBinding="{Binding Target}" SelectedValuePath="Value" DisplayMemberPath="Display" />
+                                <DataGridTextColumn Header="{DynamicResource S.Settings.Index.Col.BuiltIn}" Binding="{Binding BuiltInText}" Width="50" IsReadOnly="True" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="{Binding RuleErrors}" Foreground="{DynamicResource Brush.Error}" TextWrapping="Wrap" />
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Content="{DynamicResource S.Settings.Index.AddFolder}" Click="OnAddExcludeFolder" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Settings.Index.AddName}" Click="OnAddExcludeName" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Settings.Index.AddGlob}" Click="OnAddExcludeGlob" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Settings.Index.AddRegex}" Click="OnAddExcludeRegex" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Remove}" Click="OnRemoveRule" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Import}" Click="OnImportRules" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.Export}" Click="OnExportRules" Margin="0,0,6,6" />
+                            <Button Content="{DynamicResource S.RestoreDefaults}" Click="OnRestoreRules" Margin="0,0,6,6" />
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ======================== Favorites ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.Favorites}">
+                <Grid Margin="24,18">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource Header}" Text="{DynamicResource S.Settings.Favorites}" />
+                    <DataGrid Grid.Row="1" x:Name="FavoritesGrid" ItemsSource="{Binding Favorites}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{DynamicResource S.Settings.Fav.Alias}" Binding="{Binding Alias}" Width="160" />
+                            <DataGridTextColumn Header="{DynamicResource S.Settings.Fav.Path}" Binding="{Binding Path}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+                        <Button Content="{DynamicResource S.Settings.Fav.AddFolder}" Click="OnAddFavFolder" />
+                        <Button Content="{DynamicResource S.Settings.Fav.AddFile}" Click="OnAddFavFile" />
+                        <Button Content="{DynamicResource S.Remove}" Click="OnRemoveFav" />
+                        <Button Content="{DynamicResource S.MoveUp}" Click="OnFavUp" />
+                        <Button Content="{DynamicResource S.MoveDown}" Click="OnFavDown" />
+                    </WrapPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ======================== Web search ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.WebSearch}">
+                <Grid Margin="24,18">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource Header}" Text="{DynamicResource S.Settings.WebSearch}" />
+                    <DataGrid Grid.Row="1" x:Name="WebGrid" ItemsSource="{Binding WebEngines}">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="{DynamicResource S.Settings.Index.Col.Enabled}" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="50" />
+                            <DataGridTextColumn Header="{DynamicResource S.Settings.Web.Keyword}" Binding="{Binding Keyword}" Width="80" />
+                            <DataGridTextColumn Header="{DynamicResource S.Settings.Web.Name}" Binding="{Binding Name}" Width="110" />
+                            <DataGridTextColumn Header="{DynamicResource S.Settings.Web.Url}" Binding="{Binding UrlTemplate}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="2" Text="{Binding WebError}" Foreground="{DynamicResource Brush.Error}" Margin="0,4,0,0" />
+                    <WrapPanel Grid.Row="3" Margin="0,6,0,0">
+                        <Button Content="{DynamicResource S.Add}" Click="OnAddWeb" />
+                        <Button Content="{DynamicResource S.Remove}" Click="OnRemoveWeb" />
+                        <Button Content="{DynamicResource S.RestoreDefaults}" Click="OnRestoreWeb" />
+                    </WrapPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ======================== About ======================== -->
+            <TabItem Header="{DynamicResource S.Settings.About}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,18">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Header}" Text="Hopkey" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{DynamicResource S.Settings.About.Version}" Margin="0,0,8,0" />
+                            <TextBlock Text="{Binding Version}" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="{Binding DataDirectory}" Margin="0,8,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="{DynamicResource S.Settings.About.DataDir}" Click="OnOpenDataDir" />
+                            <Button Content="{DynamicResource S.Settings.About.LogDir}" Click="OnOpenLogDir" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.Index.Status}" />
+                        <TextBlock Style="{StaticResource Hint}" Text="{Binding IndexStatusText}" />
+                        <TextBlock Style="{StaticResource SubHeader}" Text="{DynamicResource S.Settings.About.Perf}" />
+                        <TextBlock Style="{StaticResource Hint}" Text="{Binding PerfSummary}" FontFamily="Consolas" />
+                        <TextBlock Style="{StaticResource Hint}" Text="{DynamicResource S.Settings.About.License}" Margin="0,16,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="1" Background="{DynamicResource Brush.CardAlt}" Padding="16,6">
+            <TextBlock Text="{Binding SavedText}" Foreground="{DynamicResource Brush.Accent}" HorizontalAlignment="Right" />
+        </Border>
+    </Grid>
+</Window>
