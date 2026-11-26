@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Hopkey: a keycap mid-hop (double-tap Ctrl). Master artwork, used for 32px and up. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <ellipse cx="128" cy="212" rx="56" ry="10" fill="#312E81" opacity="0.75"/>
+  <ellipse cx="128" cy="230" rx="32" ry="6" fill="#312E81" opacity="0.4"/>
+  <g transform="rotate(-9 128 120)">
+    <rect x="58" y="52" width="140" height="132" rx="30" fill="#A5B4FC"/>
+    <rect x="70" y="56" width="116" height="104" rx="24" fill="#FFFFFF"/>
+    <path d="M94 132 Q128 84 162 132" fill="none" stroke="#4F46E5" stroke-width="14" stroke-linecap="round"/>
+    <path d="M146 128 L162 134 L168 116" fill="none" stroke="#4F46E5" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
