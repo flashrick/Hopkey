@@ -14,6 +14,9 @@ public partial class SettingsWindow : Window
 {
     private readonly SettingsViewModel _vm;
 
+    /// <summary>Settings-only control styles (toggle, buttons, inputs, DataGrid). Kept out of App resources so the launcher doesn't load them.</summary>
+    public static readonly Uri ControlsUri = new("pack://application:,,,/Hopkey;component/Themes/SettingsControls.xaml");
+
     public SettingsWindow(SettingsViewModel vm)
     {
         _vm = vm;
@@ -204,7 +207,7 @@ public static class InputDialog
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
-        var panel = new StackPanel { Margin = new Thickness(16) };
+        var panel = new StackPanel { Margin = new Thickness(20) };
         panel.Children.Add(new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(box);
         panel.Children.Add(buttons);
@@ -213,8 +216,12 @@ public static class InputDialog
             Title = "Hopkey", Content = panel, Owner = owner, SizeToContent = SizeToContent.WidthAndHeight,
             ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
         };
+        w.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = SettingsWindow.ControlsUri });
+        ok.SetResourceReference(FrameworkElement.StyleProperty, "Hk.Button.Primary");
         w.SetResourceReference(Window.BackgroundProperty, "Brush.Background");
         w.SetResourceReference(Window.ForegroundProperty, "Brush.Text");
+        w.SetResourceReference(Window.FontFamilyProperty, "Font.Family");
+        w.SourceInitialized += (_, _) => ThemeManager.ApplyWindowChrome(w);
         ok.Click += (_, _) => w.DialogResult = true;
         w.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
         return w.ShowDialog() == true ? box.Text : null;

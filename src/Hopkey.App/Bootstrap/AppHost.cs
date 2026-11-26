@@ -22,7 +22,7 @@ using Microsoft.Win32;
 namespace Hopkey.App.Bootstrap;
 
 /// <summary>
-/// Composition root. Synchronous startup does only: settings 鈫?theme/strings 鈫?tray 鈫?hooks (target &lt;400ms to tray).
+/// Composition root. Synchronous startup does only: settings → theme/strings → tray → hooks (target &lt;400ms to tray).
 /// Everything else (index load, app catalog, pinyin, launcher pre-creation, Explorer cache) runs at idle / in background.
 /// </summary>
 public sealed class AppHost
@@ -177,7 +177,7 @@ public sealed class AppHost
         var lines = _index.GetStats().Select(v =>
             $"{v.Root}  [{(v.Kind == IndexSourceKind.Usn ? "MFT/USN" : "Crawler")}]  {v.LiveCount:N0}  {v.LastUpdatedUtc.ToLocalTime():g}" +
             (v.LastBuildTime is { } t ? $"  ({t.TotalSeconds:F1}s)" : ""));
-        return $"{_index.Status.State} 鈥?{_index.Index.TotalLiveCount:N0}\n" + string.Join("\n", lines);
+        return $"{_index.Status.State} · {_index.Index.TotalLiveCount:N0}\n" + string.Join("\n", lines);
     }
 
     // ------------------------------------------------------------------ launcher

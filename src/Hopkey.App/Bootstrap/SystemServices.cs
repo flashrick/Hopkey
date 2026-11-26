@@ -36,7 +36,8 @@ public static class AutostartService
                 SetRun(!elevated && !ElevatedTaskExists());
                 return;
             }
-            // Autostart off, or not elevated: the elevated task must go even if "elevated" is still ticked 鈥?            // otherwise unticking "start with Windows" leaves the app starting elevated at every logon.
+            // Autostart off, or not elevated: the elevated task must go even if "elevated" is still ticked —
+            // otherwise unticking "start with Windows" leaves the app starting elevated at every logon.
             if (ElevatedTaskExists())
             {
                 if (elevated) RunSchtasks($"/Delete /TN {TaskName} /F");
@@ -70,7 +71,7 @@ public static class AutostartService
     /// <summary>
     /// Registers the logon task from XML: schtasks /SC ONLOGON leaves the defaults "start only on AC power",
     /// "stop when going on battery" (Task Scheduler kills the app when a laptop is unplugged), a 72-hour time limit
-    /// and below-normal priority 7 鈥?all wrong for an always-running tray app.
+    /// and below-normal priority 7 — all wrong for an always-running tray app.
     /// </summary>
     private static void CreateElevatedTask()
     {

@@ -83,6 +83,8 @@ public sealed class ResultItemViewModel : ObservableObject
     public string? Badge { get; }
     public int Index { get; }
     public string Shortcut => Index < 9 ? $"Alt+{Index + 1}" : "";
+    /// <summary>The 1–9 keycap shown at the right of the first nine rows (Alt+N opens it).</summary>
+    public string IndexKey => Index < 9 ? (Index + 1).ToString() : "";
 
     public ImageSource Icon
     {

@@ -67,7 +67,7 @@ public sealed class LauncherViewModel : ObservableObject
     public int SelectedIndex
     {
         get => _selectedIndex;
-        set => Set(ref _selectedIndex, value);
+        set { if (Set(ref _selectedIndex, value)) OnPropertyChanged(nameof(Selected)); }
     }
 
     public ResultItemViewModel? Selected => _selectedIndex >= 0 && _selectedIndex < _results.Count ? _results[_selectedIndex] : null;
@@ -146,9 +146,37 @@ public sealed class LauncherViewModel : ObservableObject
 
     public string KeyHints => LocalizationManager.T("Launcher.KeyHints");
 
+    /// <summary>One footer hint: the keys (drawn as keycaps) and what they do.</summary>
+    public sealed record KeyHint(string[] Keys, string Label);
+
+    private IReadOnlyList<KeyHint>? _keyHintItems;
+
+    /// <summary>KeyHints parsed for keycap rendering: "Enter open · Ctrl+Enter location" → [Enter|open] [Ctrl,Enter|location].</summary>
+    public IReadOnlyList<KeyHint> KeyHintItems => _keyHintItems ??= ParseHints(KeyHints);
+
+    internal static IReadOnlyList<KeyHint> ParseHints(string s) => s
+        .Split('·', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(p =>
+        {
+            int i = p.IndexOf(' ');
+            return i < 0
+                ? new KeyHint(KeyChordConverter.Split(p), "")
+                : new KeyHint(KeyChordConverter.Split(p[..i]), p[(i + 1)..].Trim());
+        })
+        .ToArray();
+
+    private IndexState _indexState;
+    public IndexState IndexState
+    {
+        get => _indexState;
+        private set => Set(ref _indexState, value);
+    }
+
     public void RefreshLocalization()
     {
         OnPropertyChanged(nameof(KeyHints));
+        _keyHintItems = null;
+        OnPropertyChanged(nameof(KeyHintItems));
         OnPropertyChanged(nameof(ContextText));
         if (_lastStatus != null) UpdateIndexStatus(_lastStatus);
     }
@@ -158,6 +186,7 @@ public sealed class LauncherViewModel : ObservableObject
     public void UpdateIndexStatus(IndexStatus s)
     {
         _lastStatus = s;
+        IndexState = s.State;
         IndexError = s.State == IndexState.Error;
         IndexStatus = s.State switch
         {
