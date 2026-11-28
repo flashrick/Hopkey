@@ -73,6 +73,21 @@ public sealed class FileIndex
         RaiseChanged();
     }
 
+    /// <summary>Drop a deleted file/folder from the index right away (the watcher catches up later). Returns removed count.</summary>
+    public int RemovePath(string fullPath)
+    {
+        VolumeIndex? best = null;
+        foreach (var v in _volumes)
+            if (PathUtil.IsUnder(fullPath, v.RootPath) && (best == null || v.RootPath.Length > best.RootPath.Length)) best = v;
+        if (best == null) return 0;
+        int removed;
+        best.Lock.EnterWriteLock();
+        try { removed = best.RemovePath(fullPath); }
+        finally { best.Lock.ExitWriteLock(); }
+        if (removed > 0) RaiseChanged();
+        return removed;
+    }
+
     public void RaiseChanged()
     {
         if (Interlocked.Exchange(ref _changedPending, 1) == 0)

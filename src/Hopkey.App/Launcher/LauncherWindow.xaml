@@ -270,13 +270,38 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <TextBlock Text="{Binding Selected.Title}" HorizontalAlignment="Right" MaxWidth="460" FontWeight="SemiBold"
-                               FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Brush.Text}" />
                 </Grid>
+                <!-- The item the actions apply to: icon, name and path, like its row in the result list. -->
+                <Border Margin="20,0,20,6" Padding="0,0,0,8" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="42" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Image Source="{Binding Selected.Icon}" Width="32" Height="32" HorizontalAlignment="Left" VerticalAlignment="Center"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Selected.Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource Brush.Text}" />
+                            <TextBlock Text="{Binding Selected.Subtitle}" FontFamily="{DynamicResource Font.Small}" FontSize="11.5" Margin="0,1,0,0"
+                                       Foreground="{DynamicResource Brush.SubText}" TextTrimming="CharacterEllipsis">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Selected.Subtitle}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </Border>
                 <ListBox x:Name="ActionList" ItemsSource="{Binding Actions}" SelectedIndex="{Binding SelectedActionIndex}"
                          ItemTemplate="{StaticResource ActionTemplate}" ItemContainerStyle="{StaticResource ResultItemStyle}"
                          BorderThickness="0" Background="Transparent" Foreground="{DynamicResource Brush.Text}" Focusable="False"
-                         MouseDoubleClick="OnActionDoubleClick" MouseLeftButtonUp="OnActionDoubleClick" />
+                         MouseLeftButtonUp="OnActionClick" />
             </StackPanel>
             <StackPanel Margin="0,22,0,26" HorizontalAlignment="Center"
                         Visibility="{Binding ShowEmptyHint, Converter={StaticResource BoolToVis}}">

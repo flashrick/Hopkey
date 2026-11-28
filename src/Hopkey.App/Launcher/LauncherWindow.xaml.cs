@@ -274,6 +274,10 @@ public partial class LauncherWindow : Window
                 else if (mods.HasFlag(ModifierKeys.Shift)) _ = RunAction(ResultActionKind.RunAsAdmin);
                 else _ = RunAction(ResultActionKind.Open);
                 break;
+            case Key.Delete when mods == ModifierKeys.Shift && QueryBox.SelectionLength == 0 && _vm.Selected != null:
+                _ = RunAction(ResultActionKind.Delete);
+                e.Handled = true;
+                break;
             case Key.C when mods == ModifierKeys.Control && QueryBox.SelectionLength == 0 && _vm.Selected != null:
                 _ = RunAction(ResultActionKind.CopyPath);
                 e.Handled = true;
@@ -292,13 +296,26 @@ public partial class LauncherWindow : Window
         }
     }
 
+    // List items are Focusable=False (focus stays in the query box), so a click does NOT move the ListBox selection.
+    // Resolve the item under the mouse ourselves, otherwise the click would act on whatever was selected before.
+    private static int ClickedIndex(System.Windows.Controls.ListBox list, MouseButtonEventArgs e) =>
+        e.OriginalSource is DependencyObject d && System.Windows.Controls.ItemsControl.ContainerFromElement(list, d) is System.Windows.Controls.ListBoxItem item
+            ? list.ItemContainerGenerator.IndexFromContainer(item) : -1;
+
     private void OnResultDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (_vm.Selected != null) _ = RunAction(ResultActionKind.Open);
+        int idx = ClickedIndex(ResultList, e);
+        if (idx < 0 || idx >= _vm.Results.Count) return;
+        _vm.SelectedIndex = idx;
+        _ = RunAction(ResultActionKind.Open);
     }
 
-    private void OnActionDoubleClick(object sender, MouseButtonEventArgs e)
+    private void OnActionClick(object sender, MouseButtonEventArgs e)
     {
+        int idx = ClickedIndex(ActionList, e);
+        if (idx < 0 || idx >= _vm.Actions.Count) return;
+        _vm.SelectedActionIndex = idx;
+        e.Handled = true;
         if (_vm.SelectedAction is { } a) _ = RunAction(a.Kind);
     }
 
@@ -362,7 +379,7 @@ public partial class LauncherWindow : Window
             if (hide) HideLauncher();
             else
             {
-                if (action is ResultActionKind.ExcludeFolder or ResultActionKind.ToggleFavorite or ResultActionKind.RemoveHistory)
+                if (action is ResultActionKind.ExcludeFolder or ResultActionKind.ToggleFavorite or ResultActionKind.RemoveHistory or ResultActionKind.Delete)
                 {
                     _vm.ActionMode = false;
                     _vm.SearchNow();

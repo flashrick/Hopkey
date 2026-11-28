@@ -179,6 +179,29 @@ public sealed class VolumeIndex
                && IsDirectory(index) && PathUtil.Equal(GetFullPath(index), fullPath);
     }
 
+    /// <summary>Find the live entry for a full path (file or folder). O(n) for files; caller holds a lock.</summary>
+    public int FindPath(string fullPath)
+    {
+        fullPath = PathUtil.TrimEndSeparator(fullPath);
+        if (TryFindDirectory(fullPath, out int d)) return d;
+        var parent = PathUtil.GetParent(fullPath);
+        if (parent == null) return -1;
+        int p;
+        if (PathUtil.Equal(PathUtil.TrimEndSeparator(parent), PathUtil.TrimEndSeparator(RootPath))) p = 0;
+        else if (!TryFindDirectory(PathUtil.TrimEndSeparator(parent), out p)) return -1;
+        var name = Path.GetFileName(fullPath).ToLowerInvariant().AsSpan();
+        for (int i = CountInternal - 1; i > 0; i--)
+            if (Parent[i] == p && !IsDeleted(i) && GetLowerName(i).SequenceEqual(name)) return i;
+        return -1;
+    }
+
+    /// <summary>Remove a path (and, for folders, everything below it). Returns removed count. Caller holds the write lock.</summary>
+    internal int RemovePath(string fullPath)
+    {
+        int i = FindPath(fullPath);
+        return i > 0 ? DeleteSubtree(i) : 0;
+    }
+
     // ------------------------------------------------------------------ writing (caller holds write lock)
 
     internal void EnsureCapacity(int extraEntries)

@@ -161,6 +161,33 @@ public struct BITMAP
 }
 
 [StructLayout(LayoutKind.Sequential)]
+public struct BITMAPINFOHEADER
+{
+    public uint biSize;
+    public int biWidth;
+    /// <summary>Positive = bottom-up rows (first row in memory is the bottom of the image); negative = top-down.</summary>
+    public int biHeight;
+    public ushort biPlanes;
+    public ushort biBitCount;
+    public uint biCompression;
+    public uint biSizeImage;
+    public int biXPelsPerMeter;
+    public int biYPelsPerMeter;
+    public uint biClrUsed;
+    public uint biClrImportant;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DIBSECTION
+{
+    public BITMAP dsBm;
+    public BITMAPINFOHEADER dsBmih;
+    public uint dsBitfields0, dsBitfields1, dsBitfields2;
+    public IntPtr dshSection;
+    public uint dsOffset;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct SIZE
 {
     public int cx, cy;

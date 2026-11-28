@@ -149,6 +149,9 @@ public static class Gdi32
 
     [DllImport("gdi32.dll")]
     public static extern int GetObject(IntPtr hgdiobj, int cbBuffer, out BITMAP lpvObject);
+
+    [DllImport("gdi32.dll", EntryPoint = "GetObject")]
+    public static extern int GetObjectDib(IntPtr hgdiobj, int cbBuffer, out DIBSECTION lpvObject);
 }
 
 public static class Advapi32

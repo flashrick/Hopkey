@@ -8,13 +8,14 @@ using Hopkey.Core.History;
 using Hopkey.Core.Native;
 using Hopkey.Core.Search;
 using Hopkey.Core.Util;
+using Microsoft.VisualBasic.FileIO;
 
 namespace Hopkey.App.Launcher;
 
 public enum ResultActionKind
 {
     Open, OpenFolder, RunAsAdmin, CopyPath, CopyFile, OpenInTerminal, Properties, ExcludeFolder, ToggleFavorite,
-    OpenFileLocation, SearchWeb, CopyResult, RemoveHistory,
+    OpenFileLocation, SearchWeb, CopyResult, RemoveHistory, Delete,
 }
 
 public static class ResultActions
@@ -39,6 +40,7 @@ public static class ResultActions
                 A(ResultActionKind.Properties, "Action.Properties", "");
                 A(ResultActionKind.ToggleFavorite, isFavorite ? "Action.RemoveFavorite" : "Action.AddFavorite", "");
                 A(ResultActionKind.ExcludeFolder, "Action.ExcludeFolder", "");
+                A(ResultActionKind.Delete, "Action.Delete", "", "Shift+Del");
                 break;
             case ResultKind.Folder:
                 A(ResultActionKind.Open, "Action.Open", "", "Enter");
@@ -49,6 +51,7 @@ public static class ResultActions
                 A(ResultActionKind.Properties, "Action.Properties", "");
                 A(ResultActionKind.ToggleFavorite, isFavorite ? "Action.RemoveFavorite" : "Action.AddFavorite", "");
                 A(ResultActionKind.ExcludeFolder, "Action.ExcludeThisFolder", "");
+                A(ResultActionKind.Delete, "Action.Delete", "", "Shift+Del");
                 break;
             case ResultKind.App:
                 A(ResultActionKind.Open, "Action.Open", "", "Enter");
@@ -64,7 +67,7 @@ public static class ResultActions
                 A(ResultActionKind.CopyResult, "Action.CopyResult", "", "Enter");
                 break;
         }
-        if (inHistory) A(ResultActionKind.RemoveHistory, "Action.RemoveHistory", "");
+        if (inHistory) A(ResultActionKind.RemoveHistory, "Action.RemoveHistory", "");
         return list;
     }
 }
@@ -74,11 +77,13 @@ public sealed class ActionExecutor
 {
     private readonly HistoryStore _history;
     private readonly SettingsStore _settings;
+    private readonly Func<string, int> _removeFromIndex;
 
-    public ActionExecutor(HistoryStore history, SettingsStore settings)
+    public ActionExecutor(HistoryStore history, SettingsStore settings, Func<string, int> removeFromIndex)
     {
         _history = history;
         _settings = settings;
+        _removeFromIndex = removeFromIndex;
     }
 
     public static UsageKind ToUsage(ResultKind k) => k switch
@@ -184,6 +189,25 @@ public sealed class ActionExecutor
             case ResultActionKind.RemoveHistory:
                 if (path != null) _history.Remove(path);
                 return false;
+            case ResultActionKind.Delete:
+            {
+                if (path == null || r.Kind is not (ResultKind.File or ResultKind.Folder)) return false;
+                bool isDir = r.Kind == ResultKind.Folder;
+                var answer = MessageBox.Show(owner!, LocalizationManager.F(isDir ? "Launcher.ConfirmDeleteFolder" : "Launcher.ConfirmDelete", path),
+                    LocalizationManager.T("AppName"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                if (answer != MessageBoxResult.Yes) return false;
+                // Recycle Bin, so the user can restore it. Already gone on disk → just drop it from the index.
+                if (isDir ? Directory.Exists(path) : File.Exists(path))
+                {
+                    if (isDir)
+                        FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin, UICancelOption.ThrowException);
+                    else
+                        FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin, UICancelOption.ThrowException);
+                }
+                _removeFromIndex(path);
+                _history.Remove(path);
+                return false;
+            }
         }
         return false;
     }
