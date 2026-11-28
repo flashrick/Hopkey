@@ -13,6 +13,7 @@ The full design is in [docs/PLAN.md](docs/PLAN.md).
 - **Type-to-search**: start typing in an Explorer window or a file dialog and the results navigate that same window.
 - **Getting started guide**: on the first launch a short three-page guide lets you try the hotkey, shows where the tray icon is (on Windows 11 it detects whether the icon is hidden behind `^` and links to taskbar settings), and lists the main tricks. Reopen it from the tray menu or Settings → About.
 - **User data export/import**: Settings → About saves all configuration (options, hotkeys, exclusion rules, favorites, web search) and usage preferences (launch history, query associations, recent folders, filter habits) to one file, for backup or moving to another PC. Importing backs up the current data first.
+- **Updates**: shortly after startup and then daily (can be turned off in Settings → About), Hopkey asks GitHub Releases whether a newer version exists. When you choose to update, it downloads the release zip, checks its SHA-256 against GitHub's asset digest, exits, and the new `Hopkey.exe` replaces the files in the current install folder (whatever it is called), rolling back if anything fails, then restarts Hopkey. No scripts or extra tools are involved.
 - Settings window with live apply, light/dark themes, Chinese/English UI, tray icon, autostart, and restart as administrator.
 
 ## Build
@@ -33,10 +34,12 @@ dotnet run --project src/Hopkey.App -c Release
 dotnet publish src/Hopkey.App -c Release -o publish
 ```
 
+Releases are tagged `vX.Y.Z` and carry the zipped publish folder as `Hopkey-vX.Y.Z-win-x64.zip`: the built-in updater looks for exactly that asset name, and for GitHub's SHA-256 digest of it.
+
 ## Data locations
 
 - Settings and history: `%AppData%\Hopkey\`
-- Index cache, pinyin cache and logs: `%LocalAppData%\Hopkey\`
+- Index cache, pinyin cache and logs: `%LocalAppData%\Hopkey\` (downloaded updates are staged in its `updates` folder and removed after the update)
 
 ## License
 

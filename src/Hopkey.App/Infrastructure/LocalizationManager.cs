@@ -112,6 +112,22 @@ public static class LocalizationManager
         ["Tray.HotkeyConflict"] = ("热键 {0} 已被其他程序占用", "Hotkey {0} is already in use"),
         ["Tray.RunAsAdmin"] = ("以管理员身份重启", "Restart as administrator"),
         ["Tray.About"] = ("关于", "About"),
+        ["Tray.Update"] = ("更新到 {0}", "Update to {0}"),
+
+        // Updates
+        ["Update.Available"] = ("Hopkey {0} 已发布，点此更新。", "Hopkey {0} is available. Click here to update."),
+        ["Update.AvailableShort"] = ("发现新版本 {0}", "{0} is available"),
+        ["Update.Confirm"] = ("发现新版本 Hopkey {0}（当前 {1}）。\n\nHopkey 会先退出，由更新器替换程序文件，然后自动重新启动。设置和索引都会保留。\n\n现在更新吗？",
+            "Hopkey {0} is available (you have {1}).\n\nHopkey will close, the updater will replace its files, and then Hopkey restarts. Your settings and index are kept.\n\nUpdate now?"),
+        ["Update.Checking"] = ("正在检查更新…", "Checking for updates…"),
+        ["Update.Downloading"] = ("正在下载 Hopkey {0}…", "Downloading Hopkey {0}…"),
+        ["Update.Done"] = ("已更新到 Hopkey v{0}", "Updated to Hopkey v{0}"),
+        ["Update.UpToDate"] = ("已是最新版本（{0}）", "You're up to date ({0})"),
+        ["Update.CheckFailed"] = ("检查更新失败：{0}", "Couldn't check for updates: {0}"),
+        ["Update.DownloadFailed"] = ("下载更新失败：{0}", "Couldn't download the update: {0}"),
+        ["Update.ApplyFailed"] = ("更新失败，已恢复为原来的版本。\n{0}", "The update failed; the previous version was restored.\n{0}"),
+        ["Update.NotExited"] = ("Hopkey 没有退出，更新已取消。", "Hopkey didn't exit, so the update was cancelled."),
+        ["Update.ElevationDeclined"] = ("安装目录需要管理员权限，更新已取消。", "The install folder needs administrator rights, so the update was cancelled."),
 
         // Onboarding
         ["Onboarding.Title"] = ("欢迎使用 Hopkey", "Welcome to Hopkey"),
@@ -235,6 +251,9 @@ public static class LocalizationManager
         ["Settings.Web.Url"] = ("URL 模板（{q} 为查询）", "URL template ({q} = query)"),
         ["Settings.Web.Invalid"] = ("关键字需唯一且不含空格，URL 需包含 {q}", "Keywords must be unique without spaces; URL must contain {q}"),
         ["Settings.About.Version"] = ("版本", "Version"),
+        ["Settings.Update"] = ("更新", "Updates"),
+        ["Settings.Update.Auto"] = ("自动检查更新（启动后及每天一次，从 GitHub 检查；更新前会先询问）", "Check for updates automatically (after startup and daily, from GitHub; asks before updating)"),
+        ["Settings.Update.Check"] = ("检查更新", "Check for updates"),
         ["Settings.About.DataDir"] = ("打开数据目录", "Open data folder"),
         ["Settings.About.LogDir"] = ("打开日志目录", "Open log folder"),
         ["Settings.UserData"] = ("用户数据", "User data"),

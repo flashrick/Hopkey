@@ -7,6 +7,7 @@ using Hopkey.Core.Native;
 using Hopkey.Core.Pinyin;
 using Hopkey.Core.Search;
 using Hopkey.Core.Search.Providers;
+using Hopkey.Core.Update;
 
 namespace Hopkey.SelfTest;
 
@@ -52,6 +53,7 @@ public static class Program
             Section("History", HistoryTests);
             Section("User data export/import", UserDataTests);
             Section("Onboarding", OnboardingTests);
+            Section("Updates", UpdateTests);
         }
         if (perf) Section($"Performance (synthetic {entries:N0} entries)", () => PerfBenchmark(entries));
         if (crawlDir != null) Section($"Crawl benchmark {crawlDir}", () => CrawlBenchmark(crawlDir));
@@ -64,6 +66,80 @@ public static class Program
     }
 
     // ------------------------------------------------------------------ helpers
+
+    private static string ReleaseJson(string tag, string asset, string? digest, string host = "github.com", bool prerelease = false) =>
+        "{\"tag_name\":\"" + tag + "\",\"draft\":false,\"prerelease\":" + (prerelease ? "true" : "false") +
+        ",\"html_url\":\"https://github.com/flashrick/Hopkey/releases/tag/" + tag + "\",\"assets\":[{\"name\":\"" + asset +
+        "\",\"size\":1068459,\"browser_download_url\":\"https://" + host + "/flashrick/Hopkey/releases/download/" + tag + "/" + asset + "\"" +
+        (digest == null ? "" : ",\"digest\":\"" + digest + "\"") + "}]}";
+
+    private static void UpdateTests()
+    {
+        const string sha = "9e2d962611ae9ed70f2e65c8d118224d6ff395f4490c74f5e1e1bae136bf6514";
+        Check(UpdateChecker.TryParseTag("v0.5.0", out var v) && v == new Version(0, 5, 0), "parse tag v0.5.0");
+        Check(UpdateChecker.TryParseTag("1.2", out v) && v == new Version(1, 2, 0), "parse tag 1.2");
+        Check(UpdateChecker.TryParseTag("v1.0.0-beta+abc", out v) && v == new Version(1, 0, 0), "parse tag with suffix");
+        Check(!UpdateChecker.TryParseTag("latest", out _), "reject non-version tag");
+
+        var r = UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Hopkey-v0.6.0-win-x64.zip", "sha256:" + sha.ToUpperInvariant()));
+        Check(r != null && r.Version == new Version(0, 6, 0) && r.Sha256 == sha && r.Size == 1068459, "parse latest release");
+        Check(r != null && UpdateChecker.IsNewer(r, new Version(0, 5, 0)), "0.6.0 newer than 0.5.0");
+        Check(r != null && !UpdateChecker.IsNewer(r, new Version(0, 6, 0, 0)), "same version is not newer");
+        Check(r != null && !UpdateChecker.IsNewer(r, new Version(0, 10, 0)), "0.6.0 older than 0.10.0");
+        Check(UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Hopkey-v0.6.0-win-x64.zip", null)) == null, "no digest → rejected");
+        Check(UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Hopkey-v0.6.0-win-x64.zip", "md5:abc")) == null, "non-sha256 digest → rejected");
+        Check(UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Hopkey-v0.6.0-win-x64.zip", "sha256:" + sha, host: "evil.example.com")) == null, "untrusted host → rejected");
+        Check(UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Other.zip", "sha256:" + sha)) == null, "missing win-x64 asset → null");
+        Check(UpdateChecker.ParseLatest(ReleaseJson("v0.6.0", "Hopkey-v0.6.0-win-x64.zip", "sha256:" + sha, prerelease: true)) == null, "prerelease ignored");
+        Check(UpdateChecker.IsTrustedUrl("https://objects.githubusercontent.com/x") && !UpdateChecker.IsTrustedUrl("http://github.com/x"), "trusted URL rules");
+
+        // Applying a staged release: files replaced, extras kept, rollback on failure.
+        var root = Path.Combine(Path.GetTempPath(), "hk-update-test-" + Guid.NewGuid().ToString("N")[..8]);
+        var target = Path.Combine(root, "My Hopkey (any name)");
+        var stage = Path.Combine(root, "stage");
+        var backup = Path.Combine(root, "backup");
+        try
+        {
+            Directory.CreateDirectory(target);
+            Directory.CreateDirectory(stage);
+            foreach (var f in UpdateApplier.RequiredFiles)
+            {
+                File.WriteAllText(Path.Combine(target, f), "old " + f);
+                File.WriteAllText(Path.Combine(stage, f), "new " + f);
+            }
+            File.WriteAllText(Path.Combine(target, "user-notes.txt"), "keep me");
+            File.WriteAllText(Path.Combine(stage, "README.md"), "new readme");
+            File.WriteAllText(Path.Combine(root, "abc.txt"), "abc");
+            Eq(UpdateChecker.Sha256Of(Path.Combine(root, "abc.txt")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "sha256 of 'abc'");
+            Check(UpdateApplier.CanWrite(target), "temp target writable");
+
+            int n = UpdateApplier.Apply(stage, target, backup, TimeSpan.FromSeconds(1));
+            Eq(n, UpdateApplier.RequiredFiles.Length + 1, "files copied");
+            Check(UpdateApplier.RequiredFiles.All(f => File.ReadAllText(Path.Combine(target, f)) == "new " + f), "files replaced");
+            Eq(File.ReadAllText(Path.Combine(target, "README.md")), "new readme", "new file added");
+            Eq(File.ReadAllText(Path.Combine(target, "user-notes.txt")), "keep me", "unrelated file kept");
+            Eq(File.ReadAllText(Path.Combine(backup, "Hopkey.exe")), "old Hopkey.exe", "overwritten file backed up");
+
+            // Rollback: a locked file makes the update fail; everything goes back to the previous state.
+            foreach (var f in UpdateApplier.RequiredFiles) File.WriteAllText(Path.Combine(stage, f), "newer " + f);
+            File.Delete(Path.Combine(target, "README.md"));
+            bool threw = false;
+            using (new FileStream(Path.Combine(target, "Hopkey.dll"), FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                try { UpdateApplier.Apply(stage, target, backup, TimeSpan.FromMilliseconds(300)); }
+                catch (IOException) { threw = true; }
+            }
+            Check(threw, "locked file → update fails");
+            Check(UpdateApplier.RequiredFiles.All(f => File.ReadAllText(Path.Combine(target, f)) == "new " + f), "rollback restored every file");
+            Check(!File.Exists(Path.Combine(target, "README.md")), "rollback removed files the update added");
+
+            File.Delete(Path.Combine(stage, "Hopkey.Core.dll"));
+            bool rejected = false;
+            try { UpdateApplier.Apply(stage, target, backup, TimeSpan.Zero); } catch (InvalidDataException) { rejected = true; }
+            Check(rejected && File.ReadAllText(Path.Combine(target, "Hopkey.exe")) == "new Hopkey.exe", "incomplete package rejected before copying");
+        }
+        finally { try { Directory.Delete(root, true); } catch { } }
+    }
 
     private static void Section(string name, Action body)
     {

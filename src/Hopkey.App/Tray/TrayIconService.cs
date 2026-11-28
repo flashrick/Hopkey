@@ -18,6 +18,10 @@ public sealed class TrayIconService : IDisposable
     private readonly WinForms.ToolStripMenuItem _rebuildItem;
     private readonly WinForms.ToolStripMenuItem _adminItem;
     private readonly WinForms.ToolStripMenuItem _exitItem;
+    private readonly WinForms.ToolStripMenuItem _updateItem;
+    private readonly WinForms.ToolStripSeparator _updateSeparator;
+    private string? _updateTag;
+    private Action? _balloonClick;
     private readonly WinForms.ContextMenuStrip _menu;
 
     public event Action? SearchRequested;
@@ -27,6 +31,7 @@ public sealed class TrayIconService : IDisposable
     public event Action? PauseToggled;
     public event Action? ElevateRequested;
     public event Action? ExitRequested;
+    public event Action? UpdateRequested;
 
     public TrayIconService(bool elevated)
     {
@@ -41,9 +46,12 @@ public sealed class TrayIconService : IDisposable
         _pauseItem = new WinForms.ToolStripMenuItem("", null, (_, _) => PauseToggled?.Invoke()) { Tag = "" };
         _adminItem = new WinForms.ToolStripMenuItem("", null, (_, _) => ElevateRequested?.Invoke()) { Visible = !elevated, Tag = "" };
         _exitItem = new WinForms.ToolStripMenuItem("", null, (_, _) => ExitRequested?.Invoke()) { Tag = "" };
+        // Shown only while a newer release is available. Tag: Download glyph.
+        _updateItem = new WinForms.ToolStripMenuItem("", null, (_, _) => UpdateRequested?.Invoke()) { Tag = "", Visible = false };
+        _updateSeparator = new WinForms.ToolStripSeparator { Visible = false };
         menu.Items.AddRange(new WinForms.ToolStripItem[]
         {
-            _searchItem, _settingsItem, _guideItem, new WinForms.ToolStripSeparator(), _rebuildItem, _pauseItem, _adminItem,
+            _updateItem, _updateSeparator, _searchItem, _settingsItem, _guideItem, new WinForms.ToolStripSeparator(), _rebuildItem, _pauseItem, _adminItem,
             new WinForms.ToolStripSeparator(), _exitItem,
         });
         menu.Opening += (_, _) => TrayMenuRenderer.ApplyChrome(menu);
@@ -51,6 +59,8 @@ public sealed class TrayIconService : IDisposable
         _icon = new WinForms.NotifyIcon { Icon = _normal, ContextMenuStrip = menu, Visible = true };
         _icon.MouseClick += (_, e) => { if (e.Button == WinForms.MouseButtons.Left) SearchRequested?.Invoke(); };
         _icon.DoubleClick += (_, _) => SettingsRequested?.Invoke();
+        _icon.BalloonTipClicked += (_, _) => { var a = _balloonClick; _balloonClick = null; a?.Invoke(); };
+        _icon.BalloonTipClosed += (_, _) => _balloonClick = null;
         UpdateTexts(false);
     }
 
@@ -64,6 +74,7 @@ public sealed class TrayIconService : IDisposable
         _pauseItem.Tag = paused ? "" : "";
         _adminItem.Text = LocalizationManager.T("Tray.RunAsAdmin");
         _exitItem.Text = LocalizationManager.T("Exit");
+        _updateItem.Text = _updateTag == null ? "" : LocalizationManager.F("Tray.Update", _updateTag);
         var tip = LocalizationManager.T("Tray.Tooltip") + (paused ? " (" + LocalizationManager.T("Paused") + ")" : "");
         _icon.Text = tip.Length > 63 ? tip[..63] : tip;
         _icon.Icon = paused ? _paused : _normal;
@@ -72,8 +83,18 @@ public sealed class TrayIconService : IDisposable
 
     private void OnThemeChanged() => TrayMenuRenderer.Apply(_menu);
 
-    public void ShowBalloon(string text, bool warning = false)
+    /// <summary>Show or hide the "Update to vX" menu item.</summary>
+    public void SetUpdate(string? tag)
     {
+        _updateTag = tag;
+        _updateItem.Visible = _updateSeparator.Visible = tag != null;
+        _updateItem.Text = tag == null ? "" : LocalizationManager.F("Tray.Update", tag);
+        TrayMenuRenderer.Apply(_menu);
+    }
+
+    public void ShowBalloon(string text, bool warning = false, Action? onClick = null)
+    {
+        _balloonClick = onClick;
         _icon.BalloonTipTitle = "Hopkey";
         _icon.BalloonTipText = text;
         _icon.BalloonTipIcon = warning ? WinForms.ToolTipIcon.Warning : WinForms.ToolTipIcon.Info;
