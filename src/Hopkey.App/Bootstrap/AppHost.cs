@@ -52,6 +52,7 @@ public sealed class AppHost
     private SettingsWindow? _settingsWindow;
     private SettingsViewModel? _settingsVm;
     private OnboardingWindow? _onboarding;
+    private UpdateService _updates = null!;
     private bool _paused;
     private bool _shutdown;
 
@@ -79,6 +80,8 @@ public sealed class AppHost
         _tray.ElevateRequested += RestartElevated;
         _tray.ExitRequested += Exit;
         _tray.GuideRequested += () => ShowOnboarding(auto: false);
+        _updates = new UpdateService(_ui, _settings, _tray);
+        _updates.StatusChanged += () => { if (_settingsVm != null) _settingsVm.UpdateStatus = _updates.Status; };
 
         _history = HistoryStore.Load();
 
@@ -116,6 +119,7 @@ public sealed class AppHost
         PerfLog.Stop("startup.tray", t0);
 
         _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, StartDeferred);
+        _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, () => _updates.Start(_options.Update));
         if (_options.ElevatedRestart) _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ShowSettings());
         else if (OnboardingPolicy.ShouldAutoShow(s.Onboarding!, _options.Autostart, _options.ElevatedRestart, _options.ForceOnboarding))
             _ui.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ShowOnboarding(auto: true));
@@ -259,6 +263,8 @@ public sealed class AppHost
         _settingsVm.RestartElevatedRequested += RestartElevated;
         _settingsVm.ClearHistoryRequested += () => _history.ClearAll();
         _settingsVm.GuideRequested += () => ShowOnboarding(auto: false);
+        _settingsVm.CheckUpdatesRequested += () => _ = _updates.CheckAsync(manual: true);
+        _settingsVm.UpdateStatus = _updates.Status;
         _settingsVm.UserData = new UserDataService(_settings, _history);
         _settingsWindow = new SettingsWindow(_settingsVm);
         _settingsWindow.Closed += (_, _) => { _settingsWindow = null; _settingsVm = null; };
@@ -415,6 +421,7 @@ public sealed class AppHost
         try { _apps?.Dispose(); } catch { }
         try { _explorer.Dispose(); } catch { }
         try { _icons?.Dispose(); } catch { }
+        try { _updates.Dispose(); } catch { }
         try { _tray.Dispose(); } catch { }
         try { _hookThread.Dispose(); } catch { }
     }

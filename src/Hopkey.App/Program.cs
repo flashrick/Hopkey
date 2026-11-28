@@ -5,13 +5,27 @@ using Hopkey.Core.Util;
 
 namespace Hopkey.App;
 
-public sealed record StartupOptions(bool Autostart, int WaitPid, bool ElevatedRestart, bool ForceOnboarding = false);
+public enum UpdateOutcome { None, Updated, Failed }
+
+public sealed record StartupOptions(bool Autostart, int WaitPid, bool ElevatedRestart, bool ForceOnboarding = false,
+    UpdateOutcome Update = UpdateOutcome.None);
 
 public static class Program
 {
     [STAThread]
     public static int Main(string[] args)
     {
+        // Updater mode (started from the staged new version): replace the install folder's files, restart, exit.
+        if (UpdaterMode.Parse(args) is { } update)
+        {
+            try { AppPaths.EnsureDirectories(); } catch { }
+            Logger.Initialize();
+            try { Infrastructure.LocalizationManager.Apply(SettingsStore.Load().Current.General.Language); } catch { }
+            int rc = UpdaterMode.Run(update);
+            Logger.Flush();
+            return rc;
+        }
+
         // Multi-core JIT profile: speeds up subsequent cold starts.
         try
         {
@@ -49,6 +63,7 @@ public static class Program
     private static StartupOptions Parse(string[] args)
     {
         bool autostart = false, elevated = false, onboarding = false;
+        var update = UpdateOutcome.None;
         int waitPid = 0;
         for (int i = 0; i < args.Length; i++)
         {
@@ -57,11 +72,13 @@ public static class Program
                 case "--autostart": autostart = true; break;
                 case "--elevated-restart": elevated = true; break;
                 case "--onboarding": onboarding = true; break;
+                case "--updated": update = UpdateOutcome.Updated; break;
+                case "--update-failed": update = UpdateOutcome.Failed; break;
                 case "--wait-pid" when i + 1 < args.Length:
                     int.TryParse(args[++i], out waitPid);
                     break;
             }
         }
-        return new StartupOptions(autostart, waitPid, elevated, onboarding);
+        return new StartupOptions(autostart, waitPid, elevated, onboarding, update);
     }
 }

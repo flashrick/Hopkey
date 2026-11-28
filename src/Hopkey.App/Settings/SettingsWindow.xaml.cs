@@ -185,6 +185,7 @@ public partial class SettingsWindow : Window
     private void OnOpenDataDir(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.RoamingDirectory);
     private void OnOpenLogDir(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.LogDirectory);
     private void OnOpenGuide(object sender, RoutedEventArgs e) => _vm.RequestGuide();
+    private void OnCheckUpdates(object sender, RoutedEventArgs e) => _vm.RequestUpdateCheck();
 
     private static string UserDataFilter =>
         $"{LocalizationManager.T("Settings.UserData.FileFilter")} (*{UserDataService.FileExtension})|*{UserDataService.FileExtension}|JSON (*.json)|*.json|All files|*.*";

@@ -31,6 +31,8 @@ public sealed class GeneralSettings
     public string Language { get; set; } = "zh-CN";
     public ThemeMode Theme { get; set; } = ThemeMode.System;
     public bool StartElevated { get; set; }
+    /// <summary>Look for a newer release on GitHub shortly after startup and then daily; updating still needs a click.</summary>
+    public bool CheckForUpdates { get; set; } = true;
 }
 
 public sealed class HotkeySettings

@@ -88,6 +88,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public event Action? ClearHistoryRequested;
     public event Action? GuideRequested;
     public void RequestGuide() => GuideRequested?.Invoke();
+    public event Action? CheckUpdatesRequested;
+    public void RequestUpdateCheck() => CheckUpdatesRequested?.Invoke();
     public Func<Core.Config.HotkeySpec, bool>? ProbeHotkey { get; set; }
 
     public SettingsViewModel(SettingsStore store)
@@ -175,6 +177,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public bool Autostart { get => _draft.General.Autostart; set { _draft.General.Autostart = value; OnPropertyChanged(); Schedule(); } }
     public bool AutostartElevated { get => _draft.General.AutostartElevated; set { _draft.General.AutostartElevated = value; OnPropertyChanged(); Schedule(); } }
     public bool CanAutostartElevated => ElevationHelper.IsSelfElevated;
+    public bool CheckForUpdates { get => _draft.General.CheckForUpdates; set { _draft.General.CheckForUpdates = value; OnPropertyChanged(); Schedule(); } }
     public string Language
     {
         get => _draft.General.Language;
@@ -314,6 +317,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     private string _indexStatusText = "";
     public string IndexStatusText { get => _indexStatusText; set => Set(ref _indexStatusText, value); }
+    private string _updateStatus = "";
+    public string UpdateStatus { get => _updateStatus; set => Set(ref _updateStatus, value); }
     public void Rebuild() => RebuildRequested?.Invoke();
 
     public string RuleErrors => string.Join("\n", Rules.Where(r => r.HasError).Select(r => $"{r.Pattern}: {r.Error}"));
