@@ -12,7 +12,6 @@ public sealed class AppEntry
     public required string Lower { get; init; }
     public required string Initials { get; init; }   // pinyin initials (== Lower when no CJK)
     public required string Acronym { get; init; }    // "visual studio code" → "vsc"
-    public string? FullPinyin { get; init; }
     public bool IsUwp { get; init; }
 }
 
@@ -118,7 +117,6 @@ public sealed class AppCatalog : IDisposable
         Lower = name.ToLowerInvariant(),
         Initials = PinyinHelper.GetInitials(name),
         Acronym = BuildAcronym(name),
-        FullPinyin = PinyinHelper.GetFullPinyin(name),
         IsUwp = uwp,
     };
 

@@ -48,6 +48,7 @@ public static class Program
             Section("Pinyin", PinyinTests);
             Section("TopN", TopNTests);
             Section("Index end-to-end (temp folder)", IndexEndToEnd);
+            Section("Full pinyin + launchable ranking (temp folder)", FullPinyinIndexTests);
             Section("Exclusion prune on index", PruneTests);
             Section("USN hard-link changes (temp folder)", HardLinkTests);
             Section("History", HistoryTests);
@@ -314,10 +315,35 @@ public static class Program
         Eq(AppCatalog.BuildAcronym("Visual Studio Code"), "vsc", "acronym");
         Eq(AppCatalog.BuildAcronym("PowerShell_ISE"), "psi", "acronym camel/underscore");
         var hl = new List<(int, int)>();
-        Check(NameMatcher.ScoreItem("Visual Studio Code", "visual studio code", "visual studio code", null, "vsc", new[] { "vsc" }, hl) > 0, "app acronym match");
+        Check(NameMatcher.ScoreItem("Visual Studio Code", "visual studio code", "visual studio code", "vsc", new[] { "vsc" }, hl) > 0, "app acronym match");
         hl.Clear();
         Check(NameMatcher.ScoreFuzzy("photoshop", "pshp", hl) > 0, "fuzzy subsequence");
         Check(NameMatcher.ScoreFuzzy("photoshop", "zz", null) < 0, "fuzzy miss");
+
+        // Abbreviations
+        double Item(string name, string kw, bool fuzzy = true, List<(int, int)>? h = null) =>
+            NameMatcher.ScoreItem(name, name.ToLowerInvariant(), PinyinHelper.GetInitials(name), AppCatalog.BuildAcronym(name), new[] { kw }, h ?? new(), fuzzy);
+        hl.Clear();
+        double ppt = Abbreviation.ScoreWordStarts("PowerPoint", "powerpoint", "ppt", hl);
+        Check(ppt > NameMatcher.WordBoundary && ppt <= NameMatcher.Prefix, $"ppt → PowerPoint word-start abbreviation ({ppt})");
+        Check(hl.SequenceEqual(new[] { (0, 1), (5, 1), (9, 1) }), $"ppt highlights [{string.Join(",", hl)}]");
+        Check(Item("PowerPoint", "ppt", fuzzy: false) > 0, "ppt → PowerPoint without fuzzy (history/favorites)");
+        Check(Item("PowerPoint", "ppt") > Item("Pocket Tool", "ppt") || Item("Pocket Tool", "ppt") < 0, "ppt ranks PowerPoint");
+        Check(Item("Visual Studio Code", "vscode") > NameMatcher.Substring, "vscode → Visual Studio Code");
+        Check(Item("Visual Studio Code", "vscode") > Item("Visual Studio Code", "vsde"), "contiguous runs score higher");
+        Check(Abbreviation.ScoreWordStarts("Photoshop", "photoshop", "pshp", null) < 0, "single word is fuzzy, not abbreviation");
+        Check(Abbreviation.ScoreWordStarts("Notepad", "notepad", "ppt", null) < 0, "abbreviation miss");
+        Check(Item("Excel", "xls") >= Abbreviation.KnownScore - 1, "xls → Excel (known table)");
+        Check(Item("Microsoft Word", "doc") > 0, "doc → Microsoft Word");
+        Check(Item("WordPad", "doc", fuzzy: false) < 0, "doc does not hit WordPad");
+        Check(Item("Command Prompt", "cmd") > 0, "cmd → Command Prompt");
+        Check(Item("Adobe Photoshop 2025", "ps") > 0, "ps → Adobe Photoshop");
+        double appPpt = Item("PowerPoint", "ppt") + 200; // AppSearchProvider bonus
+        // Worst file-index competitor: short name starting with "ppt" + max length bonus (64) + shallow depth bonus (16).
+        double filePpt = NameMatcher.ScoreSubstring("ppt.pptx", "ppt.pptx", "ppt", out _) + 64 - 8 + 16;
+        Check(appPpt > filePpt, $"PowerPoint app ({appPpt}) outranks ppt.pptx ({filePpt})");
+        double fileShort = NameMatcher.ScoreSubstring("a.pptx", "a.pptx", "ppt", out _) + 64 - 6 + 16;
+        Check(appPpt > fileShort, $"PowerPoint app ({appPpt}) outranks a.pptx ({fileShort})");
     }
 
     private static void PinyinTests()
@@ -329,6 +355,56 @@ public static class Program
         Check(!PinyinHelper.ContainsCjk("abc"), "no cjk");
         Check(PinyinHelper.IsPinyinQuery("bg"), "pinyin query");
         Check(!PinyinHelper.IsPinyinQuery("b.g"), "punctuation not pinyin query");
+
+        // Full pinyin (embedded table)
+        Check(PinyinInitialsTable.HasFullPinyin, "embedded full pinyin table loaded");
+        Check(PinyinInitialsTable.GetReadings('行')?.Contains("hang") == true, "polyphone readings (行 xing/hang)");
+        Check(PinyinMatcher.Find("项目报告.docx", "baogao", out int p, out int l) && p == 2 && l == 2, $"baogao → 报告 at 2 (got {p},{l})");
+        Check(PinyinMatcher.Find("项目报告.docx", "baog", out _, out _), "partial last syllable");
+        Check(PinyinMatcher.Find("项目报告.docx", "bgao", out _, out _), "mixed initials + full");
+        Check(PinyinMatcher.Find("项目报告.docx", "xiangmubaogao.docx", out _, out l) && l == 9, "full name incl. extension");
+        Check(PinyinMatcher.Find("银行流水", "yinhang", out _, out _) && PinyinMatcher.Find("银行流水", "yinxing", out _, out _), "polyphone match");
+        Check(PinyinMatcher.Find("绿色", "lvse", out _, out _) && PinyinMatcher.Find("绿色", "luse", out _, out _), "ü as v or u");
+        Check(PinyinMatcher.Find("2023年报告", "2023nianbaogao", out p, out _) && p == 0, "digits literal");
+        Check(!PinyinMatcher.Find("项目报告", "baogaox", out _, out _), "overlong miss");
+        Check(!PinyinMatcher.Find("项目报告", "zhongguo", out _, out _), "full pinyin miss");
+        Check(PinyinMatcher.Needles("baogao").Contains("bg"), $"needles baogao [{string.Join(",", PinyinMatcher.Needles("baogao"))}]");
+        Check(PinyinMatcher.Needles("bg").Count == 0, "initials-only query has no full-pinyin needles");
+        var h = new List<(int, int)>();
+        Check(NameMatcher.ScoreItem("微信", "微信", PinyinHelper.GetInitials("微信"), AppCatalog.BuildAcronym("微信"), new[] { "weixin" }, h, false) > 0
+              && h.Count == 1 && h[0] == (0, 2), "app full pinyin weixin → 微信");
+    }
+
+    private static void FullPinyinIndexTests()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "cl-selftest-py-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        foreach (var f in new[] { "年度报告.docx", "银行流水.xlsx", "会议纪要.txt", "editor-notes.txt", "my-editor.exe", "editor guide.txt", "Editor Tool.lnk", "viewer.lnk", "viewer.exe" })
+            File.WriteAllText(Path.Combine(root, "docs", f), "x");
+        try
+        {
+            var (fi, _, _) = CrawlTree(root);
+            Check(Has(Find(fi, "baogao"), "年度报告.docx"), "index full pinyin baogao");
+            Check(Has(Find(fi, "niandubaogao"), "年度报告.docx"), "index full pinyin whole name");
+            Check(Has(Find(fi, "yinhang"), "银行流水.xlsx"), "index full pinyin polyphone");
+            Check(Has(Find(fi, "huiyi"), "会议纪要.txt") && !Has(Find(fi, "huiyi"), "年度报告.docx"), "index full pinyin precise");
+            Check(Has(Find(fi, "docs baogao"), "年度报告.docx"), "full pinyin anchor + path keyword");
+            Check(Has(Find(fi, "baogao docs"), "年度报告.docx"), "full pinyin non-anchor keyword");
+            var hit = Find(fi, "baogao").First(x => x.Title == "年度报告.docx");
+            Check(hit.Highlights.Count == 1 && hit.Highlights[0] == (2, 2), "full pinyin highlight");
+            // incremental narrowing from initials → full pinyin
+            var prov = new IndexSearchProvider(fi, () => new SearchSettings());
+            prov.Search(QueryParser.Parse("ba", null), 50, CancellationToken.None);
+            Check(prov.Search(QueryParser.Parse("baogao", null), 50, CancellationToken.None).Any(x => x.Title == "年度报告.docx"), "narrowing to full pinyin");
+
+            var r = Find(fi, "editor").Where(x => x.Kind == ResultKind.File).Select(x => x.Title).ToList();
+            int exe = r.IndexOf("my-editor.exe"), lnk = r.IndexOf("Editor Tool.lnk"), txt = r.IndexOf("editor-notes.txt");
+            Check(exe >= 0 && lnk >= 0 && txt >= 0 && exe < txt && lnk < txt, $"exe/lnk ranked before documents [{string.Join(", ", r)}]");
+            Check(exe < lnk, $"exe (word-boundary hit) before lnk (prefix hit) [{string.Join(", ", r)}]");
+            var rv = Find(fi, "viewer").Select(x => x.Title).ToList();
+            Check(rv.IndexOf("viewer.exe") >= 0 && rv.IndexOf("viewer.exe") < rv.IndexOf("viewer.lnk"), $"same name: exe before lnk [{string.Join(", ", rv)}]");
+        }
+        finally { try { Directory.Delete(root, true); } catch { } }
     }
 
     private static void TopNTests()
