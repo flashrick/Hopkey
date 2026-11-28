@@ -359,6 +359,17 @@ public static class Program
             var mv = Find(fi, "moved-in");
             Check(mv.Any(x => x.Path!.Contains("incoming-renamed-folder")), $"children follow dir rename [{string.Join(",", mv.Select(x => x.Path))}]");
 
+            // Launcher "Delete" action: drop a file / a folder subtree from the index right away
+            var mainCs = Path.Combine(root, "projects", "alpha", "main.cs");
+            Check(Has(Find(fi, "main"), "main.cs"), "file present before RemovePath");
+            Eq(fi.RemovePath(mainCs), 1, "RemovePath(file) removed 1");
+            Check(!Has(Find(fi, "main"), "main.cs"), "removed file no longer found");
+            Eq(fi.RemovePath(mainCs), 0, "RemovePath again is a no-op");
+            Eq(fi.RemovePath(Path.Combine(root, "photos")), 3, "RemovePath(folder) removes subtree");
+            Check(!Has(Find(fi, "beach"), "beach.jpg") && !Has(Find(fi, "2023"), "2023"), "folder subtree no longer found");
+            Check(Has(Find(fi, "readme"), "Readme.md"), "siblings untouched");
+            Eq(fi.RemovePath(@"Z:\not-indexed\x.txt"), 0, "RemovePath outside roots is a no-op");
+
             // Persistence round trip
             var file = Path.Combine(Path.GetTempPath(), "cl-selftest-" + Guid.NewGuid().ToString("N") + ".bin");
             IndexPersistence.Save(file, m.Fingerprint, new[] { v });

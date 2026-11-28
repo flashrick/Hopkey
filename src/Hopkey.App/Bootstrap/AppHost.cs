@@ -173,7 +173,7 @@ public sealed class AppHost
         _icons = new IconCache();
         _launcherVm = new LauncherViewModel(_engine!, _icons, _history, _settings, _ui);
         _launcherVm.UpdateIndexStatus(_index!.Status);
-        var exec = new ActionExecutor(_history, _settings);
+        var exec = new ActionExecutor(_history, _settings, p => _index!.Index.RemovePath(p));
         _launcher = new LauncherWindow(_launcherVm, exec, _icons, NavigateContextAsync, () => SettingsWindow.OpenFolder(AppPaths.LogDirectory));
     }
 

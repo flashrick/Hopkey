@@ -59,6 +59,8 @@ public static class LocalizationManager
         ["Launcher.Copied"] = ("已复制", "Copied"),
         ["Launcher.Excluded"] = ("已排除：{0}", "Excluded: {0}"),
         ["Launcher.ConfirmExclude"] = ("将“{0}”加入排除列表？\n该文件夹会立即从索引中移除。", "Exclude \"{0}\"?\nIt will be removed from the index immediately."),
+        ["Launcher.ConfirmDelete"] = ("删除“{0}”？\n文件会移到回收站，并从索引中移除。", "Delete \"{0}\"?\nIt will be moved to the Recycle Bin and removed from the index."),
+        ["Launcher.ConfirmDeleteFolder"] = ("删除文件夹“{0}”及其全部内容？\n会移到回收站，并从索引中移除。", "Delete the folder \"{0}\" and everything in it?\nIt will be moved to the Recycle Bin and removed from the index."),
         ["Launcher.Back"] = ("← 返回", "← Back"),
 
         // Actions
@@ -78,6 +80,7 @@ public static class LocalizationManager
         ["Action.SearchWeb"] = ("搜索", "Search"),
         ["Action.CopyResult"] = ("复制结果", "Copy result"),
         ["Action.RemoveHistory"] = ("从历史记录中移除", "Remove from history"),
+        ["Action.Delete"] = ("删除", "Delete"),
 
         // QuickSwitch toolbar
         ["QS.Search"] = ("搜索并跳转", "Search & jump"),

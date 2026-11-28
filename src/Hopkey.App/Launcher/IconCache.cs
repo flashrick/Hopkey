@@ -148,13 +148,26 @@ public sealed class IconCache : IDisposable
 
     private static BitmapSource? HBitmapToSource(IntPtr hbmp)
     {
-        if (Gdi32.GetObject(hbmp, Marshal.SizeOf<BITMAP>(), out var bm) == 0) return null;
+        // BITMAP.bmHeight is always positive for a DIB section; only DIBSECTION.dsBmih.biHeight tells the row order.
+        int got = Gdi32.GetObjectDib(hbmp, Marshal.SizeOf<DIBSECTION>(), out var ds);
+        if (got == 0) return null;
+        var bm = ds.dsBm;
         BitmapSource src;
         if (bm.bmBitsPixel == 32 && bm.bmBits != IntPtr.Zero)
         {
             int stride = bm.bmWidthBytes;
             int h = Math.Abs(bm.bmHeight);
-            src = BitmapSource.Create(bm.bmWidth, h, 96, 96, PixelFormats.Pbgra32, null, bm.bmBits, stride * h, stride);
+            bool bottomUp = got >= Marshal.SizeOf<DIBSECTION>() && ds.dsBmih.biHeight > 0;
+            if (bottomUp)
+            {
+                // Bottom-up DIB: copy the rows in reverse, or the icon is drawn upside down.
+                var buf = new byte[stride * h];
+                for (int y = 0; y < h; y++)
+                    Marshal.Copy(bm.bmBits + (h - 1 - y) * stride, buf, y * stride, stride);
+                src = BitmapSource.Create(bm.bmWidth, h, 96, 96, PixelFormats.Pbgra32, null, buf, stride);
+            }
+            else
+                src = BitmapSource.Create(bm.bmWidth, h, 96, 96, PixelFormats.Pbgra32, null, bm.bmBits, stride * h, stride);
         }
         else
         {
