@@ -14,4 +14,10 @@
     <InternalsVisibleTo Include="Hopkey.SelfTest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Char → pinyin table (mozillazg/pinyin-data, MIT); regenerate with tools/gen-pinyin.cs -->
+    <EmbeddedResource Include="Pinyin\pinyin-data.txt" LogicalName="Hopkey.Core.Pinyin.pinyin-data.txt" />
+    <None Include="Pinyin\pinyin-data.LICENSE.txt" />
+  </ItemGroup>
+
 </Project>

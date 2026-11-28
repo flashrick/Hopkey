@@ -21,7 +21,7 @@ public sealed class AppSearchProvider : ISearchProvider
         foreach (var app in _catalog.Apps)
         {
             var hl = new List<(int, int)>();
-            double s = NameMatcher.ScoreItem(app.Name, app.Lower, app.Initials, app.FullPinyin, app.Acronym, q.Keywords, hl);
+            double s = NameMatcher.ScoreItem(app.Name, app.Lower, app.Initials, app.Acronym, q.Keywords, hl);
             if (s < 0) continue;
             list.Add(new SearchResult
             {
@@ -135,7 +135,7 @@ public sealed class HistorySearchProvider : ISearchProvider
     private static double MatchName(string name, SearchQuery q, List<(int, int)> hl)
     {
         var lower = QueryParser.Lower(name);
-        return NameMatcher.ScoreItem(name, lower, PinyinHelper.GetInitials(name), PinyinHelper.GetFullPinyin(name),
+        return NameMatcher.ScoreItem(name, lower, PinyinHelper.GetInitials(name),
             AppCatalog.BuildAcronym(name), q.Keywords, hl, allowFuzzy: false);
     }
 

@@ -39,23 +39,6 @@ public static class PinyinHelper
         return new string(buf);
     }
 
-    /// <summary>Full pinyin (no separators) when IME data is available; otherwise null.</summary>
-    public static string? GetFullPinyin(string name)
-    {
-        if (!PinyinInitialsTable.HasFullPinyin || !ContainsCjk(name)) return null;
-        var sb = new StringBuilder(name.Length * 4);
-        foreach (var c in name)
-        {
-            if (IsCjk(c))
-            {
-                var f = PinyinInitialsTable.GetFull(c);
-                sb.Append(f ?? c.ToString());
-            }
-            else sb.Append(char.ToLowerInvariant(c));
-        }
-        return sb.ToString();
-    }
-
     /// <summary>Is the query a candidate for pinyin matching (ASCII letters/digits only, at least 1 letter)?</summary>
     public static bool IsPinyinQuery(ReadOnlySpan<char> q)
     {

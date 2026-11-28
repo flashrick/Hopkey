@@ -105,7 +105,7 @@ public static class LocalizationManager
         ["Launcher.Tip.Calc"] = ("提示：输入 =12*3 直接计算", "Tip: type =12*3 to calculate"),
         ["Launcher.Tip.Web"] = ("提示：g 关键词 用 Google 搜索（还有 bd、bing、gh）", "Tip: g <words> searches Google (also bd, bing, gh)"),
         ["Launcher.Tip.Actions"] = ("提示：按 Tab 查看更多操作，Ctrl+Enter 打开所在位置", "Tip: Tab for more actions, Ctrl+Enter opens the location"),
-        ["Launcher.Tip.Pinyin"] = ("提示：支持拼音首字母，如 wd 可以找到“文档”", "Tip: pinyin initials work too, e.g. wd finds 文档"),
+        ["Launcher.Tip.Pinyin"] = ("提示：支持拼音，如 wd 或 wendang 都能找到“文档”", "Tip: pinyin works too, e.g. wd or wendang finds 文档"),
         // Tray
         ["Tray.Guide"] = ("新手指南", "Getting started"),
         ["Tray.Tooltip"] = ("Hopkey — 双击 Ctrl 搜索", "Hopkey — double-tap Ctrl to search"),
@@ -222,7 +222,7 @@ public static class LocalizationManager
         ["Settings.Index.Col.BuiltIn"] = ("内置", "Built-in"),
         ["Settings.Index.BuiltInCannotDelete"] = ("内置规则不能删除，只能停用", "Built-in rules can only be disabled"),
         ["Settings.Index.NewPattern"] = ("请输入模式：", "Enter pattern:"),
-        ["Settings.Search.Pinyin"] = ("拼音首字母匹配", "Pinyin initials matching"),
+        ["Settings.Search.Pinyin"] = ("拼音匹配（首字母和全拼）", "Pinyin matching (initials and full pinyin)"),
         ["Settings.Search.HistoryBoost"] = ("根据使用历史调整排序", "Rank by usage history"),
         ["Settings.Search.MaxResults"] = ("最多结果数", "Max results"),
         ["Settings.Search.ClearHistory"] = ("清除使用历史", "Clear history"),

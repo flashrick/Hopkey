@@ -10,6 +10,18 @@ public static class NameMatcher
     public const double Substring = 300;
     public const double PathHit = 150;
     public const double PinyinFactor = 0.9;
+    /// <summary>
+    /// File-index bonus for programs and shortcuts: a word-boundary hit outranks a plain document prefix hit.
+    /// .exe gets 300 more than .lnk, which covers the gap between a prefix and a word-boundary hit
+    /// (800 vs 600 − pos) plus the name-length bonus, so when both an exe and a shortcut match, the exe comes first
+    /// (unless the shortcut is a much better match, e.g. its exact name vs a word inside the exe's name).
+    /// </summary>
+    public const double ExeBonus = 600;
+    public const double LnkBonus = 300;
+
+    public static double LaunchableBonus(ReadOnlySpan<char> lowerName) =>
+        lowerName.EndsWith(".exe", StringComparison.Ordinal) ? ExeBonus
+        : lowerName.EndsWith(".lnk", StringComparison.Ordinal) ? LnkBonus : 0;
 
     public static bool IsBoundary(ReadOnlySpan<char> original, int pos)
     {
@@ -82,27 +94,33 @@ public static class NameMatcher
 
     /// <summary>
     /// Full scoring of several keywords against a small-set item (app/history/favorite).
-    /// Every keyword must match name, initials (pinyin), full pinyin, acronym, or fuzzy subsequence.
+    /// Every keyword must match name, initials (pinyin), full pinyin, acronym, abbreviation, or fuzzy subsequence.
     /// </summary>
-    public static double ScoreItem(string name, string lower, string initials, string? fullPinyin, string acronym,
+    public static double ScoreItem(string name, string lower, string initials, string acronym,
         IReadOnlyList<string> keywords, List<(int, int)> highlights, bool allowFuzzy = true)
     {
         double total = 0;
+        bool cjk = !ReferenceEquals(initials, lower) && initials != lower;
         foreach (var kw in keywords)
         {
             double s = ScoreSubstring(lower, name, kw, out int pos);
             if (s >= 0) { highlights.Add((pos, kw.Length)); total += s; continue; }
-            if (!ReferenceEquals(initials, lower) && initials != lower)
+            if (cjk)
             {
                 s = ScoreSubstring(initials, name, kw, out pos);
                 if (s >= 0) { highlights.Add((pos, kw.Length)); total += s * PinyinFactor; continue; }
-            }
-            if (fullPinyin != null && fullPinyin.Contains(kw, StringComparison.Ordinal))
-            {
-                total += (fullPinyin.StartsWith(kw, StringComparison.Ordinal) ? Prefix : Substring) * PinyinFactor;
-                continue;
+                if (Pinyin.PinyinMatcher.IsFullPinyinQuery(kw) && Pinyin.PinyinMatcher.Find(name, kw, out pos, out int len))
+                {
+                    highlights.Add((pos, len));
+                    total += ScoreAt(name, name.Length, len, pos) * PinyinFactor;
+                    continue;
+                }
             }
             s = ScoreAcronym(acronym, kw);
+            if (s >= 0) { total += s; continue; }
+            s = Abbreviation.ScoreKnown(lower, name, kw, highlights);
+            if (s >= 0) { total += s; continue; }
+            s = Abbreviation.ScoreWordStarts(name, lower, kw, highlights);
             if (s >= 0) { total += s; continue; }
             if (allowFuzzy)
             {

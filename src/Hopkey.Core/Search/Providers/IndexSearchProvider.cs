@@ -95,8 +95,12 @@ public sealed class IndexSearchProvider : ISearchProvider
                     list.Add(cand with { PreScore = NameMatcher.ScoreAt(v.GetName(cand.Entry), lower.Length, anchor.Length, pos) + Bonus(v, cand.Entry, filter), ViaPinyin = false });
                     continue;
                 }
-                if (filter.Pinyin && PinyinPos(v.GetName(cand.Entry), anchor) is int ppos && ppos >= 0)
-                    list.Add(cand with { PreScore = NameMatcher.ScoreAt(v.GetName(cand.Entry), lower.Length, anchor.Length, ppos) * NameMatcher.PinyinFactor + Bonus(v, cand.Entry, filter), ViaPinyin = true });
+                if (!filter.Pinyin) continue;
+                var nm = v.GetName(cand.Entry);
+                if (PinyinPos(nm, anchor) is int ppos && ppos >= 0)
+                    list.Add(cand with { PreScore = NameMatcher.ScoreAt(nm, lower.Length, anchor.Length, ppos) * NameMatcher.PinyinFactor + Bonus(v, cand.Entry, filter), ViaPinyin = true });
+                else if (FullPinyinFind(nm, anchor, out int fpos, out int flen))
+                    list.Add(cand with { PreScore = NameMatcher.ScoreAt(nm, lower.Length, flen, fpos) * NameMatcher.PinyinFactor + Bonus(v, cand.Entry, filter), ViaPinyin = true });
             }
             finally { v.Lock.ExitReadLock(); }
         }
@@ -150,7 +154,11 @@ public sealed class IndexSearchProvider : ISearchProvider
                         depth++;
                     }
                     if (deadAncestor) continue;
-                    if (q.Keywords.Count > 1) score += 64 - Math.Min(name.Length, 64);
+                    if (q.Keywords.Count > 1)
+                    {
+                        score += 64 - Math.Min(name.Length, 64);
+                        if (!v.IsDirectory(e)) score += NameMatcher.LaunchableBonus(lower);
+                    }
                     score += 16 - Math.Min(depth, 16);
                     if (q.Keywords.Count > 1 && q.Type == TypeFilter.Any && v.IsDirectory(e)) score += 20;
                     scored.Add((score, vol, e));
@@ -192,8 +200,19 @@ public sealed class IndexSearchProvider : ISearchProvider
     }
 
     /// <summary>Same length/folder bonus as ArenaScanner.PreScore.</summary>
-    private static double Bonus(VolumeIndex v, int e, ScanFilter filter) =>
-        64 - Math.Min((int)v.NameLength[e], 64) + (filter.Type == TypeFilter.Any && v.IsDirectory(e) ? 20 : 0);
+    private static double Bonus(VolumeIndex v, int e, ScanFilter filter)
+    {
+        double b = 64 - Math.Min((int)v.NameLength[e], 64);
+        if (v.IsDirectory(e)) { if (filter.Type == TypeFilter.Any) b += 20; }
+        else b += NameMatcher.LaunchableBonus(v.GetLowerName(e));
+        return b;
+    }
+
+    private static bool FullPinyinFind(ReadOnlySpan<char> name, string kw, out int pos, out int len)
+    {
+        pos = len = 0;
+        return Pinyin.PinyinMatcher.IsFullPinyinQuery(kw) && Pinyin.PinyinMatcher.Find(name, kw, out pos, out len);
+    }
 
     /// <summary>Highlight ranges computed only for the final results.</summary>
     private static IReadOnlyList<(int, int)> Highlights(string title, IReadOnlyList<string> keywords)
@@ -204,6 +223,7 @@ public sealed class IndexSearchProvider : ISearchProvider
         {
             if (NameMatcher.ScoreSubstring(lower, title, kw, out int pos) >= 0) hl.Add((pos, kw.Length));
             else if (Pinyin.PinyinHelper.ContainsCjk(title) && PinyinPos(title, kw) is int p && p >= 0) hl.Add((p, kw.Length));
+            else if (FullPinyinFind(title, kw, out int fp, out int fl)) hl.Add((fp, fl));
         }
         return hl;
     }
@@ -244,6 +264,6 @@ public sealed class IndexSearchProvider : ISearchProvider
         if (!Pinyin.PinyinHelper.ContainsCjk(name) || !Pinyin.PinyinHelper.IsPinyinQuery(kw)) return false;
         Span<char> buf = name.Length <= 256 ? stackalloc char[name.Length] : new char[name.Length];
         Pinyin.PinyinHelper.WriteInitials(name, buf);
-        return ((ReadOnlySpan<char>)buf).IndexOf(kw.AsSpan()) >= 0;
+        return ((ReadOnlySpan<char>)buf).IndexOf(kw.AsSpan()) >= 0 || FullPinyinFind(name, kw, out _, out _);
     }
 }

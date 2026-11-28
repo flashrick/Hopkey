@@ -14,7 +14,6 @@ public static class AppPaths
     public static string SettingsFile => Path.Combine(RoamingDirectory, "settings.json");
     public static string HistoryFile => Path.Combine(RoamingDirectory, "history.json");
     public static string IndexFile => Path.Combine(LocalDirectory, "index.bin");
-    public static string PinyinCacheFile => Path.Combine(LocalDirectory, "pinyin-initials.bin");
 
     public static string ExecutablePath => Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, AppName + ".exe");
 

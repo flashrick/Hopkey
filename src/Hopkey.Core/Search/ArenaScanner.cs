@@ -30,22 +30,28 @@ public static class ArenaScanner
         int workers = Environment.ProcessorCount;
         int partsPerVolume = Math.Max(1, workers * 2);
         // Main-arena partitions and pinyin-arena partitions run in the same parallel loop.
-        var parts = new List<(int Vol, int From, int To, bool Pinyin)>(volumes.Count * partsPerVolume);
+        // Needle -1 = main arena; 0 = anchor in the pinyin-initials arena; ≥ 1 = initials of a full-pinyin
+        // segmentation of the anchor ("baogao" → "bg"), each hit verified against the real readings.
+        var parts = new List<(int Vol, int From, int To, int Needle)>(volumes.Count * partsPerVolume);
         for (int vi = 0; vi < volumes.Count; vi++)
         {
             int n = volumes[vi].Count;
             if (n <= 1) continue;
             int per = Math.Max(4096, (n + partsPerVolume - 1) / partsPerVolume);
-            for (int a = 1; a < n; a += per) parts.Add((vi, a, Math.Min(n, a + per), false));
+            for (int a = 1; a < n; a += per) parts.Add((vi, a, Math.Min(n, a + per), -1));
         }
+        var needles = new List<string>(4);
         if (filter.Pinyin && Pinyin.PinyinHelper.IsPinyinQuery(anchor))
         {
+            needles.Add(anchor);
+            needles.AddRange(Pinyin.PinyinMatcher.Needles(anchor));
             for (int vi = 0; vi < volumes.Count; vi++)
             {
                 int slots = volumes[vi].Pinyin?.Count ?? 0;
                 if (slots == 0) continue;
                 int per = Math.Max(8192, (slots + workers - 1) / workers);
-                for (int a = 0; a < slots; a += per) parts.Add((vi, a, Math.Min(slots, a + per), true));
+                for (int ni = 0; ni < needles.Count; ni++)
+                    for (int a = 0; a < slots; a += per) parts.Add((vi, a, Math.Min(slots, a + per), ni));
             }
         }
 
@@ -56,8 +62,8 @@ public static class ArenaScanner
             () => new TopN(localK),
             (pi, state, heap) =>
             {
-                var (vol, from, to, py) = parts[pi];
-                if (py) ScanPinyin(volumes[vol], vol, from, to, anchor, filter, heap, ct);
+                var (vol, from, to, ni) = parts[pi];
+                if (ni >= 0) ScanPinyin(volumes[vol], vol, from, to, needles[ni], ni == 0 ? null : anchor, filter, heap, ct);
                 else ScanPartition(volumes[vol], vol, from, to, anchor, filter, heap, ct);
                 return heap;
             },
@@ -107,7 +113,9 @@ public static class ArenaScanner
         finally { v.Lock.ExitReadLock(); }
     }
 
-    private static void ScanPinyin(VolumeIndex v, int vol, int slotFrom, int slotTo, string anchor, ScanFilter filter, TopN heap, CancellationToken ct)
+    /// <param name="anchor">Needle searched in the initials arena.</param>
+    /// <param name="fullPinyin">When set, the needle came from a full-pinyin segmentation of this keyword: verify each hit.</param>
+    private static void ScanPinyin(VolumeIndex v, int vol, int slotFrom, int slotTo, string anchor, string? fullPinyin, ScanFilter filter, TopN heap, CancellationToken ct)
     {
         v.Lock.EnterReadLock();
         try
@@ -140,6 +148,7 @@ public static class ArenaScanner
                 for (int i = posInName; i < posInName + anchor.Length; i++)
                     if (Pinyin.PinyinHelper.IsCjk(name[i])) { cjk = true; break; }
                 if (!cjk) continue;
+                if (fullPinyin != null && !Pinyin.PinyinMatcher.MatchAt(name, posInName, fullPinyin, out _)) continue;
                 if (!Accept(v, e, filter)) continue;
                 double pre = PreScore(v, e, posInName, anchor.Length, filter) * NameMatcher.PinyinFactor;
                 heap.Push(pre, vol | 0x40000000, e);
@@ -198,7 +207,9 @@ public static class ArenaScanner
         int len = v.NameLength[e];
         double s = NameMatcher.ScoreAt(v.GetName(e), len, kwLen, posInName);
         s += 64 - Math.Min(len, 64);
-        if (filter.Type == TypeFilter.Any && (v.Flags[e] & IndexEntryFlags.Directory) != 0) s += 20;
+        bool dir = (v.Flags[e] & IndexEntryFlags.Directory) != 0;
+        if (dir) { if (filter.Type == TypeFilter.Any) s += 20; }
+        else s += NameMatcher.LaunchableBonus(v.GetLowerName(e));
         return s;
     }
 }
